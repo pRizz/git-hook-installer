@@ -40,7 +40,7 @@ git-hook-installer install cargo-fmt-pre-commit --manifest-dir crates/my-crate
 
 - **git repo detection**: walks up parent directories looking for `.git` (supports worktrees where `.git` is a file).
 - **safe overwrites**: if a hook already exists, it will prompt before backing it up (or use `--force` / `--yes`).
-- **hook installed**: `.git/hooks/pre-commit` runs `cargo fmt` and blocks the commit if formatting fails.
+- **hook installed**: `.git/hooks/pre-commit` runs `cargo fmt` to format code before committing (does not block commits).
 
 ## Options
 

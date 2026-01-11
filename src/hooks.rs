@@ -55,13 +55,16 @@ cargo fmt
 }
 
 fn shell_escape_path(path: &Path) -> String {
-    // Minimal escaping for POSIX sh: wrap in double quotes and escape embedded quotes/backslashes.
+    // Minimal escaping for POSIX sh: wrap in double quotes and escape embedded quotes/backslashes,
+    // dollar signs, and backticks to prevent command injection.
     let raw = path.to_string_lossy();
     let mut escaped = String::with_capacity(raw.len() + 2);
     for ch in raw.chars() {
         match ch {
             '\\' => escaped.push_str("\\\\"),
             '"' => escaped.push_str("\\\""),
+            '$' => escaped.push_str("\\$"),
+            '`' => escaped.push_str("\\`"),
             _ => escaped.push(ch),
         }
     }
