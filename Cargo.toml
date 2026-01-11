@@ -7,7 +7,7 @@ description = "Install basic premade git hooks into the current repository."
 repository = "https://github.com/pRizz/git-hook-installer"
 homepage = "https://github.com/pRizz/git-hook-installer"
 documentation = "https://docs.rs/git-hook-installer"
-keywords = ["git", "hooks", "cli", "cargo", "pre-commit", "rust"]
+keywords = ["git", "hooks", "cli", "pre-commit"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
