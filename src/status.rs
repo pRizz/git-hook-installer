@@ -1,3 +1,9 @@
+//! Hook status inspection and reporting.
+//!
+//! This module provides functionality to inspect the current state of git hooks
+//! in a repository, including whether hooks are installed, their contents,
+//! and whether they match expected hook scripts.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 

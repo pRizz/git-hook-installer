@@ -1,3 +1,10 @@
+//! Cargo manifest detection and resolution.
+//!
+//! This module handles finding Cargo.toml files within a git repository,
+//! supporting both simple repositories and monorepos. It can search upwards
+//! from the current directory or perform a breadth-first search when needed,
+//! with user interaction to select a manifest when multiple are found.
+
 use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fs;

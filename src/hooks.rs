@@ -1,3 +1,9 @@
+//! Git hook installation and script generation.
+//!
+//! This module handles writing hook scripts to the git hooks directory,
+//! including backup of existing hooks, permission management, and generation
+//! of hook script content (e.g., cargo-fmt pre-commit hooks).
+
 use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;

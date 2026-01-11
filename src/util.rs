@@ -1,3 +1,8 @@
+//! Utility functions for path and string manipulation.
+//!
+//! This module provides helper functions for common operations like
+//! normalizing line endings and displaying relative paths.
+
 use std::path::Path;
 
 pub fn normalize_newlines(input: &str) -> String {

@@ -1,3 +1,8 @@
+//! Main entry point for the git-hook-installer CLI tool.
+//!
+//! This module handles command-line parsing and orchestrates the installation
+//! or status checking of git hooks in the current repository.
+
 use std::env;
 
 use anyhow::{Context, Result};

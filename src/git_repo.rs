@@ -1,3 +1,9 @@
+//! Git repository detection and path resolution.
+//!
+//! This module provides functionality to locate git repositories by walking
+//! up the directory tree and handles both regular repositories and git worktrees
+//! (where `.git` is a file pointing to the actual git directory).
+
 use std::fs;
 use std::path::{Path, PathBuf};
 

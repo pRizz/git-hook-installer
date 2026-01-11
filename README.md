@@ -2,9 +2,19 @@
 
 A small Rust CLI that installs premade git hooks into the **current** repository.
 
+[![crates.io](https://img.shields.io/crates/v/git-hook-installer.svg)](https://crates.io/crates/git-hook-installer)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Repository](https://img.shields.io/badge/repo-github-blue)](https://github.com/pRizz/git-hook-installer)
+
 ## Install
 
-From source (this repo):
+From [crates.io](https://crates.io/crates/git-hook-installer):
+
+```bash
+cargo install git-hook-installer
+```
+
+Or from source (this repo):
 
 ```bash
 cargo install --path .
@@ -47,3 +57,9 @@ git-hook-installer install cargo-fmt-pre-commit --manifest-dir crates/my-crate
 - `-y, --yes`: auto-confirm prompts
 - `--non-interactive`: never prompt (fails on ambiguity or existing hooks unless `--force`)
 - `-f, --force`: overwrite existing hook (backs it up first)
+
+## Links
+
+- [Repository](https://github.com/pRizz/git-hook-installer)
+- [Crates.io](https://crates.io/crates/git-hook-installer)
+- [Documentation](https://docs.rs/git-hook-installer)

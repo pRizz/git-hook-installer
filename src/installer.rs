@@ -1,3 +1,9 @@
+//! Hook resolution and installation orchestration.
+//!
+//! This module coordinates the process of resolving which hook to install
+//! (including user prompts when needed) and then installing the resolved hook
+//! into the git repository.
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};

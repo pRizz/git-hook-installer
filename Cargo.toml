@@ -4,6 +4,11 @@ version = "1.0.0"
 edition = "2021"
 license = "MIT"
 description = "Install basic premade git hooks into the current repository."
+repository = "https://github.com/pRizz/git-hook-installer"
+homepage = "https://github.com/pRizz/git-hook-installer"
+documentation = "https://docs.rs/git-hook-installer"
+keywords = ["git", "hooks", "cli", "cargo", "pre-commit", "rust"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "git-hook-installer"

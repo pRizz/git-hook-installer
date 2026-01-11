@@ -1,3 +1,7 @@
+//! Command-line interface definitions and argument parsing.
+//!
+//! This module defines the CLI structure, commands, and options using clap.
+
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
