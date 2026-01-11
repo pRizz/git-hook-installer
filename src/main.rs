@@ -42,6 +42,16 @@ enum Command {
     },
     /// List available premade hooks
     List,
+    /// Inspect and report current hook state for this repository
+    Status {
+        /// Directory containing the Cargo.toml to compare against (optional)
+        #[arg(long, value_name = "DIR")]
+        manifest_dir: Option<PathBuf>,
+
+        /// Print more details (e.g. hook contents summary)
+        #[arg(long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -70,6 +80,12 @@ fn main() -> Result<()> {
             println!("Available hooks:");
             println!("- cargo-fmt-pre-commit");
             return Ok(());
+        }
+        Command::Status {
+            manifest_dir,
+            verbose,
+        } => {
+            print_status(&cwd, &repo_root, &git_dir, manifest_dir.as_deref(), verbose)?;
         }
         Command::Install { hook, manifest_dir } => {
             let maybe_resolved_hook = resolve_hook_kind(
@@ -101,6 +117,200 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn print_status(
+    cwd: &Path,
+    repo_root: &Path,
+    git_dir: &Path,
+    maybe_manifest_dir_from_cli: Option<&Path>,
+    verbose: bool,
+) -> Result<()> {
+    let hooks_dir = git_dir.join("hooks");
+
+    println!("Repository: {}", repo_root.display());
+    println!("Git dir: {}", git_dir.display());
+    println!("Hooks dir: {}", hooks_dir.display());
+
+    if !hooks_dir.is_dir() {
+        println!("Hooks dir status: missing");
+        println!("pre-commit: not installed");
+        return Ok(());
+    }
+
+    let (maybe_manifest_dir, manifest_note) =
+        resolve_manifest_dir_for_status(cwd, repo_root, maybe_manifest_dir_from_cli)?;
+    if let Some(note) = manifest_note {
+        println!("{note}");
+    }
+
+    inspect_pre_commit(
+        &hooks_dir,
+        repo_root,
+        maybe_manifest_dir.as_deref(),
+        verbose,
+    )?;
+    Ok(())
+}
+
+fn resolve_manifest_dir_for_status(
+    cwd: &Path,
+    repo_root: &Path,
+    maybe_manifest_dir_from_cli: Option<&Path>,
+) -> Result<(Option<PathBuf>, Option<String>)> {
+    let options = ResolveHookOptions {
+        yes: true,
+        non_interactive: true,
+    };
+
+    let result = resolve_cargo_manifest_dir(maybe_manifest_dir_from_cli, cwd, repo_root, options);
+    let Ok(manifest_dir) = result else {
+        return Ok((None, None));
+    };
+
+    Ok((
+        Some(manifest_dir.clone()),
+        Some(format!(
+            "Cargo manifest dir (for comparison): {}",
+            manifest_dir.display()
+        )),
+    ))
+}
+
+fn inspect_pre_commit(
+    hooks_dir: &Path,
+    repo_root: &Path,
+    maybe_manifest_dir: Option<&Path>,
+    verbose: bool,
+) -> Result<()> {
+    let hook_path = hooks_dir.join("pre-commit");
+    if !hook_path.exists() {
+        println!("pre-commit: not installed");
+        print_hook_backups(hooks_dir, "pre-commit")?;
+        return Ok(());
+    }
+
+    let maybe_contents = fs::read_to_string(&hook_path).ok();
+    let is_executable = is_executable(&hook_path);
+
+    println!("pre-commit: installed");
+    if let Some(is_executable) = is_executable {
+        println!("pre-commit executable: {is_executable}");
+    }
+
+    let Some(contents) = maybe_contents else {
+        println!("pre-commit readable: false");
+        print_hook_backups(hooks_dir, "pre-commit")?;
+        return Ok(());
+    };
+
+    println!("pre-commit readable: true");
+
+    let looks_like_cargo_fmt = contents.lines().any(|line| line.trim() == "cargo fmt");
+    println!("pre-commit runs cargo fmt: {looks_like_cargo_fmt}");
+
+    if let Some(cd_dir) = parse_cd_dir(&contents) {
+        println!("pre-commit cd: {cd_dir}");
+    }
+
+    if let Some(manifest_dir) = maybe_manifest_dir {
+        let expected = cargo_fmt_pre_commit_script(manifest_dir);
+        let is_exact_match = normalize_newlines(&contents) == normalize_newlines(&expected);
+        println!(
+            "pre-commit matches expected cargo-fmt hook: {is_exact_match} (manifest: {})",
+            relative_display(repo_root, manifest_dir)
+        );
+    } else if looks_like_cargo_fmt {
+        println!("pre-commit matches expected cargo-fmt hook: unknown (no manifest dir resolved)");
+    }
+
+    if verbose {
+        print_hook_summary(&contents);
+    }
+
+    print_hook_backups(hooks_dir, "pre-commit")?;
+    Ok(())
+}
+
+fn parse_cd_dir(contents: &str) -> Option<String> {
+    for line in contents.lines() {
+        let line = line.trim();
+        if !line.starts_with("cd ") {
+            continue;
+        }
+
+        let raw = line.trim_start_matches("cd ").trim();
+        let unquoted = raw
+            .strip_prefix('"')
+            .and_then(|rest| rest.strip_suffix('"'))
+            .unwrap_or(raw);
+        return Some(unquoted.to_string());
+    }
+    None
+}
+
+fn normalize_newlines(s: &str) -> String {
+    let mut normalized = s.replace("\r\n", "\n");
+    if !normalized.ends_with('\n') {
+        normalized.push('\n');
+    }
+    normalized
+}
+
+fn print_hook_summary(contents: &str) {
+    let line_count = contents.lines().count();
+    println!("pre-commit lines: {line_count}");
+    let has_shebang = contents
+        .lines()
+        .next()
+        .is_some_and(|line| line.starts_with("#!"));
+    println!("pre-commit has shebang: {has_shebang}");
+}
+
+fn print_hook_backups(hooks_dir: &Path, hook_file_name: &str) -> Result<()> {
+    let entries = match fs::read_dir(hooks_dir) {
+        Ok(entries) => entries,
+        Err(_) => return Ok(()),
+    };
+
+    let prefix = format!("{hook_file_name}.bak");
+    let mut backups = Vec::new();
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        let file_name = entry.file_name();
+        let Some(file_name) = file_name.to_str() else {
+            continue;
+        };
+        if !file_name.starts_with(&prefix) {
+            continue;
+        }
+        backups.push(file_name.to_string());
+    }
+
+    backups.sort();
+    if backups.is_empty() {
+        return Ok(());
+    }
+
+    println!("pre-commit backups: {}", backups.join(", "));
+    Ok(())
+}
+
+#[cfg(unix)]
+fn is_executable(path: &Path) -> Option<bool> {
+    use std::os::unix::fs::PermissionsExt;
+    let metadata = fs::metadata(path).ok()?;
+    let mode = metadata.permissions().mode();
+    Some((mode & 0o111) != 0)
+}
+
+#[cfg(not(unix))]
+fn is_executable(_path: &Path) -> Option<bool> {
+    None
 }
 
 #[derive(Clone, Copy)]

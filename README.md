@@ -18,6 +18,12 @@ Run with no arguments to auto-detect a Cargo/Rust repo and offer to install a `p
 git-hook-installer
 ```
 
+Inspect the current hook state:
+
+```bash
+git-hook-installer status
+```
+
 Install the `cargo fmt` pre-commit hook directly:
 
 ```bash
