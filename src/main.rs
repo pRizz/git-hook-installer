@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use dialoguer::{Confirm, Select};
 
 #[derive(Debug, Parser)]
-#[command(name = "install-basic-git-hooks", version, about)]
+#[command(name = "git-hook-installer", version, about)]
 struct Cli {
     /// Automatically answer "yes" to prompts
     #[arg(short = 'y', long)]
@@ -231,29 +231,7 @@ fn shell_escape_path(path: &Path) -> String {
 
 fn write_hook_file(path: &Path, contents: &[u8], options: InstallOptions) -> Result<()> {
     if path.exists() {
-        if options.force {
-            backup_existing_hook(path)?;
-        } else if options.non_interactive {
-            return Err(anyhow!(
-                "Hook already exists at {} (use --force to overwrite)",
-                path.display()
-            ));
-        } else if options.yes {
-            backup_existing_hook(path)?;
-        } else {
-            println!("Hook already exists at {}.", path.display());
-            let overwrite = Confirm::new()
-                .with_prompt("Back up existing hook and overwrite?")
-                .default(false)
-                .interact()
-                .context("Failed to read confirmation from stdin")?;
-
-            if !overwrite {
-                return Err(anyhow!("Aborted (existing hook was not modified)."));
-            }
-
-            backup_existing_hook(path)?;
-        }
+        handle_existing_hook(path, options)?;
     }
 
     let mut file = fs::File::create(path)
@@ -264,6 +242,32 @@ fn write_hook_file(path: &Path, contents: &[u8], options: InstallOptions) -> Res
     set_executable(path)
         .with_context(|| format!("Failed to mark {} as executable", path.display()))?;
     Ok(())
+}
+
+fn handle_existing_hook(path: &Path, options: InstallOptions) -> Result<()> {
+    if options.force || options.yes {
+        return backup_existing_hook(path);
+    }
+
+    if options.non_interactive {
+        return Err(anyhow!(
+            "Hook already exists at {} (use --force to overwrite)",
+            path.display()
+        ));
+    }
+
+    println!("Hook already exists at {}.", path.display());
+    let should_overwrite = Confirm::new()
+        .with_prompt("Back up existing hook and overwrite?")
+        .default(false)
+        .interact()
+        .context("Failed to read confirmation from stdin")?;
+
+    if !should_overwrite {
+        return Err(anyhow!("Aborted (existing hook was not modified)."));
+    }
+
+    backup_existing_hook(path)
 }
 
 fn backup_existing_hook(path: &Path) -> Result<()> {

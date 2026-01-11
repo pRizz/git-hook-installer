@@ -1,12 +1,12 @@
 [package]
-name = "install-basic-git-hooks"
+name = "git-hook-installer"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Install basic premade git hooks into the current repository."
 
 [[bin]]
-name = "install-basic-git-hooks"
+name = "git-hook-installer"
 path = "src/main.rs"
 
 [dependencies]

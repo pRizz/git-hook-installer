@@ -1,4 +1,4 @@
-# install-basic-git-hooks
+# git-hook-installer
 
 A small Rust CLI that installs premade git hooks into the **current** repository.
 
@@ -15,19 +15,19 @@ cargo install --path .
 Run with no arguments to auto-detect a Cargo/Rust repo and offer to install a `pre-commit` hook:
 
 ```bash
-install-basic-git-hooks
+git-hook-installer
 ```
 
 Install the `cargo fmt` pre-commit hook directly:
 
 ```bash
-install-basic-git-hooks install cargo-fmt-pre-commit
+git-hook-installer install cargo-fmt-pre-commit
 ```
 
 If your repo has multiple `Cargo.toml` files (monorepo), pick which one the hook should use:
 
 ```bash
-install-basic-git-hooks install cargo-fmt-pre-commit --manifest-dir crates/my-crate
+git-hook-installer install cargo-fmt-pre-commit --manifest-dir crates/my-crate
 ```
 
 ## Behavior
