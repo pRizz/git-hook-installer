@@ -15,6 +15,7 @@ use std::path::Path;
 use anyhow::{anyhow, Context, Result};
 
 pub use fs::{install_hook_script, is_executable};
+pub use managed_block::MANAGED_BLOCK_BEGIN;
 pub use script::{cargo_fmt_pre_commit_script, managed_pre_commit_block};
 pub use types::{InstallOptions, JavaKotlinTool, JsTsTool, ManagedPreCommitSettings, PythonTool};
 

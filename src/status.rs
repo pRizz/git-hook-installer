@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 use crate::cargo_repo::{resolve_cargo_manifest_dir, ResolveHookOptions};
-use crate::hooks::{cargo_fmt_pre_commit_script, is_executable};
+use crate::hooks::{cargo_fmt_pre_commit_script, is_executable, MANAGED_BLOCK_BEGIN};
 use crate::util::{normalize_newlines, relative_display};
 
 pub fn print_status(
@@ -97,9 +97,7 @@ fn inspect_pre_commit(
 
     println!("pre-commit readable: true");
 
-    let has_managed_block = contents
-        .lines()
-        .any(|line| line.trim() == "# >>> git-hook-installer managed block >>>");
+    let has_managed_block = contents.lines().any(|line| line.trim() == MANAGED_BLOCK_BEGIN);
     println!("pre-commit has git-hook-installer managed block: {has_managed_block}");
 
     let looks_like_cargo_fmt = contents.lines().any(|line| line.trim() == "cargo fmt");
