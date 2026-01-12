@@ -7,9 +7,9 @@ use crate::hooks::{JavaKotlinTool, JsTsTool, ManagedPreCommitSettings, PythonToo
 
 use super::detect::{
     choose_java_kotlin_tool, choose_js_ts_tool, choose_python_tool, detect_c_cpp_repo_proof,
-    detect_go_repo_proof, detect_java_kotlin_repo_proof, detect_python_repo_proof,
-    detect_ruby_repo_proof, detect_shell_repo_proof, detect_terraform_repo_proof,
-    detect_js_ts_repo_proof, detect_typescript_repo_proof, ToolChoice, ToolChoiceKind,
+    detect_go_repo_proof, detect_java_kotlin_repo_proof, detect_js_ts_repo_proof,
+    detect_python_repo_proof, detect_ruby_repo_proof, detect_shell_repo_proof,
+    detect_terraform_repo_proof, detect_typescript_repo_proof, ToolChoice, ToolChoiceKind,
 };
 
 fn print_tool_choice<T: Copy>(label: &str, choice: ToolChoice<T>, tool_display: &str) {

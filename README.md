@@ -28,6 +28,22 @@ Run with no arguments to offer to install/update the managed `pre-commit` hook:
 git-hook-installer
 ```
 
+Recursively install/update the managed `pre-commit` hook across many repos under a directory:
+
+```bash
+# scans current directory
+git-hook-installer install-recursive
+
+# or pass an explicit directory to scan
+git-hook-installer install-recursive ~/src
+
+# increase scan depth (default is 1)
+git-hook-installer install-recursive --max-depth 3 ~/src
+
+# skip the confirmation prompt
+git-hook-installer --yes install-recursive ~/src
+```
+
 Inspect the current hook state:
 
 ```bash
@@ -61,6 +77,7 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 ## Behavior
 
 - **git repo detection**: walks up parent directories looking for `.git` (supports worktrees where `.git` is a file).
+- **recursive install**: `install-recursive [DIR]` scans for git repos under a directory and runs the installer in each repo (shows a count + directory preview and asks for confirmation unless `--yes`). The default scan depth is **1**, configurable via `--max-depth`.
 - **safe overwrites**: if a hook already exists, it will prompt before backing it up (or use `--force` / `--yes`).
 - **hook installed**: `.git/hooks/pre-commit` contains a **managed block** (marked with `git-hook-installer` begin/end markers) which can run a set of formatters/linters and **re-stage** changes.
 - **no repo config**: all settings are stored **inside the hook file in `.git/hooks/`** (nothing is written to your repository).

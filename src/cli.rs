@@ -37,6 +37,29 @@ pub enum Command {
         #[arg(long, value_name = "DIR")]
         manifest_dir: Option<PathBuf>,
     },
+    /// Install/update a hook across many git repos under a directory
+    ///
+    /// This is useful when you have a parent folder containing many repositories.
+    /// By default, the scan root is the current directory.
+    InstallRecursive {
+        /// Hook to install
+        #[arg(value_enum)]
+        hook: Option<HookKind>,
+
+        /// Directory containing the Cargo.toml to use (only used for pre-commit)
+        #[arg(long, value_name = "DIR")]
+        manifest_dir: Option<PathBuf>,
+
+        /// How deep to scan for git repositories (default: 1)
+        ///
+        /// Depth 1 scans the scan-root and its immediate children.
+        #[arg(long, default_value_t = 1, value_name = "N")]
+        max_depth: usize,
+
+        /// Directory to scan for git repos (defaults to current directory)
+        #[arg(value_name = "DIR")]
+        dir: Option<PathBuf>,
+    },
     /// Disable the managed `pre-commit` hook block installed by git-hook-installer
     Disable,
     /// Uninstall the managed `pre-commit` hook block installed by git-hook-installer

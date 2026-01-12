@@ -143,16 +143,21 @@ ghi_run_ts_typecheck() {
         ("", "(disabled)", "", "", "", "")
     };
 
-    let (python_tool_value, python_tool_note, python_functions, python_filter_lines, python_run_section) =
-        if let Some(python_tool) = settings.maybe_python_tool {
-            let python_tool_value = match python_tool {
-                PythonTool::Ruff => "ruff",
-                PythonTool::Black => "black",
-            };
-            (
-                python_tool_value,
-                python_tool_value,
-                r#"ghi_run_python_ruff() {
+    let (
+        python_tool_value,
+        python_tool_note,
+        python_functions,
+        python_filter_lines,
+        python_run_section,
+    ) = if let Some(python_tool) = settings.maybe_python_tool {
+        let python_tool_value = match python_tool {
+            PythonTool::Ruff => "ruff",
+            PythonTool::Black => "black",
+        };
+        (
+            python_tool_value,
+            python_tool_value,
+            r#"ghi_run_python_ruff() {
   files="$1"
   if [ -z "$files" ]; then
     return 0
@@ -185,9 +190,9 @@ ghi_run_python_black() {
   black $files
 }
 "#,
-                r#"  files_py="$(ghi_filter_by_ext "$staged" "*.py")"
+            r#"  files_py="$(ghi_filter_by_ext "$staged" "*.py")"
 "#,
-                r#"  # Python
+            r#"  # Python
   if [ "$GHI_PYTHON_TOOL" = "ruff" ]; then
     ghi_run_python_ruff "$files_py"
   else
@@ -195,21 +200,26 @@ ghi_run_python_black() {
   fi
   ghi_git_add_list "$files_py"
 "#,
-            )
-        } else {
-            ("", "(disabled)", "", "", "")
-        };
+        )
+    } else {
+        ("", "(disabled)", "", "", "")
+    };
 
-    let (java_kotlin_tool_value, java_kotlin_tool_note, java_kotlin_functions, java_kotlin_filter_lines, java_kotlin_run_section) =
-        if let Some(java_kotlin_tool) = settings.maybe_java_kotlin_tool {
-            let java_kotlin_tool_value = match java_kotlin_tool {
-                JavaKotlinTool::Spotless => "spotless",
-                JavaKotlinTool::Ktlint => "ktlint",
-            };
-            (
-                java_kotlin_tool_value,
-                java_kotlin_tool_value,
-                r#"ghi_run_java_kotlin_spotless() {
+    let (
+        java_kotlin_tool_value,
+        java_kotlin_tool_note,
+        java_kotlin_functions,
+        java_kotlin_filter_lines,
+        java_kotlin_run_section,
+    ) = if let Some(java_kotlin_tool) = settings.maybe_java_kotlin_tool {
+        let java_kotlin_tool_value = match java_kotlin_tool {
+            JavaKotlinTool::Spotless => "spotless",
+            JavaKotlinTool::Ktlint => "ktlint",
+        };
+        (
+            java_kotlin_tool_value,
+            java_kotlin_tool_value,
+            r#"ghi_run_java_kotlin_spotless() {
   all_staged_files="$1"
   if [ -z "$all_staged_files" ]; then
     return 0
@@ -248,9 +258,9 @@ ghi_run_java_kotlin_ktlint() {
   ktlint -F $files
 }
 "#,
-                r#"  files_kt="$(ghi_filter_by_ext "$staged" "*.kt" "*.kts")"
+            r#"  files_kt="$(ghi_filter_by_ext "$staged" "*.kt" "*.kts")"
 "#,
-                r#"  # Java/Kotlin
+            r#"  # Java/Kotlin
   if [ "$GHI_JAVA_KOTLIN_TOOL" = "spotless" ]; then
     ghi_run_java_kotlin_spotless "$staged"
   else
@@ -258,10 +268,10 @@ ghi_run_java_kotlin_ktlint() {
     ghi_git_add_list "$files_kt"
   fi
 "#,
-            )
-        } else {
-            ("", "(disabled)", "", "", "")
-        };
+        )
+    } else {
+        ("", "(disabled)", "", "", "")
+    };
 
     let (go_functions, go_filter_lines, go_run_section) = if settings.go_enabled {
         (
@@ -325,9 +335,10 @@ ghi_run_java_kotlin_ktlint() {
         ("", "", "")
     };
 
-    let (terraform_functions, terraform_filter_lines, terraform_run_section) = if settings.terraform_enabled {
-        (
-            r#"ghi_run_terraform() {
+    let (terraform_functions, terraform_filter_lines, terraform_run_section) =
+        if settings.terraform_enabled {
+            (
+                r#"ghi_run_terraform() {
   files="$1"
   if [ -z "$files" ]; then
     return 0
@@ -349,16 +360,16 @@ ghi_run_java_kotlin_ktlint() {
   done
 }
 "#,
-            r#"  files_tf="$(ghi_filter_by_ext "$staged" "*.tf" "*.tfvars")"
+                r#"  files_tf="$(ghi_filter_by_ext "$staged" "*.tf" "*.tfvars")"
 "#,
-            r#"  # Terraform
+                r#"  # Terraform
   ghi_run_terraform "$files_tf"
   ghi_git_add_list "$files_tf"
 "#,
-        )
-    } else {
-        ("", "", "")
-    };
+            )
+        } else {
+            ("", "", "")
+        };
 
     let (c_cpp_functions, c_cpp_filter_lines, c_cpp_run_section) = if settings.c_cpp_enabled {
         (
@@ -429,7 +440,11 @@ ghi_run_java_kotlin_ktlint() {
         .unwrap_or_else(|| "(none)".to_string());
 
     let enabled = if settings.enabled { "1" } else { "0" };
-    let ts_typecheck_enabled = if settings.ts_typecheck_enabled { "1" } else { "0" };
+    let ts_typecheck_enabled = if settings.ts_typecheck_enabled {
+        "1"
+    } else {
+        "0"
+    };
     let go_enabled = if settings.go_enabled { "1" } else { "0" };
     let shell_enabled = if settings.shell_enabled { "1" } else { "0" };
     let terraform_enabled = if settings.terraform_enabled { "1" } else { "0" };

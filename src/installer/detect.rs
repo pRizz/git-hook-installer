@@ -499,7 +499,10 @@ fn has_any_file_with_ext_bounded(
                 let Some(ext) = path.extension().and_then(|s| s.to_str()) else {
                     continue;
                 };
-                if exts.iter().any(|candidate| ext.eq_ignore_ascii_case(candidate)) {
+                if exts
+                    .iter()
+                    .any(|candidate| ext.eq_ignore_ascii_case(candidate))
+                {
                     return true;
                 }
                 continue;
@@ -643,7 +646,10 @@ mod tests {
     fn detect_ruby_repo_proof_some_when_gemfile_exists() -> Result<()> {
         // arrange
         let temp = TempDir::new()?;
-        std::fs::write(temp.path().join("Gemfile"), "source 'https://rubygems.org'\n")?;
+        std::fs::write(
+            temp.path().join("Gemfile"),
+            "source 'https://rubygems.org'\n",
+        )?;
 
         // act
         let maybe_reason = detect_ruby_repo_proof(temp.path());
