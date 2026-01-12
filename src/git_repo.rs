@@ -83,8 +83,10 @@ fn parse_gitdir_file(dot_git_file: &Path) -> Result<PathBuf> {
 ///
 /// This is intended for "parent folder contains many repos" use-cases. To keep runtime bounded,
 /// we limit the traversal depth and skip well-known large/unrelated directories.
-pub fn find_git_repos_under_dir(scan_root: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
-    const MAX_DEPTH: usize = 6;
+pub fn find_git_repos_under_dir(
+    scan_root: &Path,
+    max_depth: usize,
+) -> Result<Vec<(PathBuf, PathBuf)>> {
     const MAX_ENTRIES: usize = 200_000;
 
     if !scan_root.is_dir() {
@@ -115,7 +117,7 @@ pub fn find_git_repos_under_dir(scan_root: &Path) -> Result<Vec<(PathBuf, PathBu
             continue;
         }
 
-        if depth >= MAX_DEPTH {
+        if depth >= max_depth {
             continue;
         }
 
@@ -214,12 +216,33 @@ mod tests {
         fs::create_dir_all(&not_repo)?;
 
         // act
-        let repos = find_git_repos_under_dir(&root)?;
+        let repos = find_git_repos_under_dir(&root, 1)?;
 
         // assert
         assert!(repos.iter().any(|(r, _)| r == &repo_a));
         assert!(repos.iter().any(|(r, _)| r == &repo_b));
         assert!(!repos.iter().any(|(r, _)| r == &not_repo));
+        Ok(())
+    }
+
+    #[test]
+    fn find_git_repos_under_dir_respects_max_depth() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        let root = temp.path().join("root");
+        fs::create_dir_all(&root)?;
+
+        let nested_parent = root.join("level-1");
+        let nested_repo = nested_parent.join("repo");
+        fs::create_dir_all(nested_repo.join(".git"))?;
+
+        // act
+        let repos_depth_1 = find_git_repos_under_dir(&root, 1)?;
+        let repos_depth_2 = find_git_repos_under_dir(&root, 2)?;
+
+        // assert
+        assert!(!repos_depth_1.iter().any(|(r, _)| r == &nested_repo));
+        assert!(repos_depth_2.iter().any(|(r, _)| r == &nested_repo));
         Ok(())
     }
 }

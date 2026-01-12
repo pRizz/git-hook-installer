@@ -71,10 +71,16 @@ fn main() -> Result<()> {
         Command::InstallRecursive {
             hook,
             manifest_dir,
+            max_depth,
             dir,
         } => {
             let scan_root = dir.unwrap_or(cwd);
-            let repos = find_git_repos_under_dir(&scan_root)?;
+            println!(
+                "Scanning {} for git repositories (max depth: {})",
+                scan_root.display(),
+                max_depth
+            );
+            let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
             if repos.is_empty() {
                 println!("No git repositories found under {}", scan_root.display());
                 return Ok(());

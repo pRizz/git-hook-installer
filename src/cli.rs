@@ -50,6 +50,12 @@ pub enum Command {
         #[arg(long, value_name = "DIR")]
         manifest_dir: Option<PathBuf>,
 
+        /// How deep to scan for git repositories (default: 1)
+        ///
+        /// Depth 1 scans the scan-root and its immediate children.
+        #[arg(long, default_value_t = 1, value_name = "N")]
+        max_depth: usize,
+
         /// Directory to scan for git repos (defaults to current directory)
         #[arg(value_name = "DIR")]
         dir: Option<PathBuf>,
