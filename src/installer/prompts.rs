@@ -29,15 +29,22 @@ pub fn resolve_pre_commit_settings(
     maybe_cargo_dir: Option<PathBuf>,
     options: ResolveHookOptions,
 ) -> Result<ManagedPreCommitSettings> {
+    let maybe_js_ts_proof = super::detect::detect_js_ts_repo_proof(repo_root);
     let js_ts_choice = choose_js_ts_tool(repo_root);
     let python_choice = choose_python_tool(repo_root);
     let java_kotlin_choice = choose_java_kotlin_tool(repo_root);
 
     if !options.non_interactive {
-        let js_ts_display = match js_ts_choice.tool {
-            JsTsTool::Biome => "biome",
-            JsTsTool::PrettierEslint => "prettier+eslint",
-        };
+        if let Some(reason) = maybe_js_ts_proof {
+            let js_ts_display = match js_ts_choice.tool {
+                JsTsTool::Biome => "biome",
+                JsTsTool::PrettierEslint => "prettier+eslint",
+            };
+            println!("Detected JS/TS repo signals ({reason})");
+            print_tool_choice("JS/TS toolchain", js_ts_choice, js_ts_display);
+        } else {
+            println!("Skipping JS/TS toolchain (no JS/TS repo signals found)");
+        }
         let python_display = match python_choice.tool {
             PythonTool::Ruff => "ruff",
             PythonTool::Black => "black",
@@ -47,7 +54,6 @@ pub fn resolve_pre_commit_settings(
             JavaKotlinTool::Ktlint => "ktlint",
         };
 
-        print_tool_choice("JS/TS toolchain", js_ts_choice, js_ts_display);
         print_tool_choice("Python toolchain", python_choice, python_display);
         print_tool_choice(
             "Java/Kotlin toolchain",
@@ -67,7 +73,7 @@ pub fn resolve_pre_commit_settings(
 
     Ok(ManagedPreCommitSettings {
         enabled: true,
-        js_ts_tool: js_ts_choice.tool,
+        maybe_js_ts_tool: maybe_js_ts_proof.map(|_| js_ts_choice.tool),
         python_tool: python_choice.tool,
         java_kotlin_tool: java_kotlin_choice.tool,
         maybe_cargo_manifest_dir: maybe_cargo_dir,

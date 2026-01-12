@@ -5,9 +5,102 @@ use crate::hooks::types::{JavaKotlinTool, JsTsTool, ManagedPreCommitSettings, Py
 use crate::util::relative_display;
 
 pub fn managed_pre_commit_block(settings: &ManagedPreCommitSettings, repo_root: &Path) -> String {
-    let js_ts_tool = match settings.js_ts_tool {
-        JsTsTool::Biome => "biome",
-        JsTsTool::PrettierEslint => "prettier+eslint",
+    let (
+        js_ts_tool_value,
+        js_ts_tool_note,
+        js_ts_filter_lines,
+        js_ts_functions,
+        js_ts_run_section,
+        md_yaml_section,
+    ) = if let Some(js_ts_tool) = settings.maybe_js_ts_tool {
+        let js_ts_tool_value = match js_ts_tool {
+            JsTsTool::Biome => "biome",
+            JsTsTool::PrettierEslint => "prettier+eslint",
+        };
+
+        (
+            js_ts_tool_value,
+            js_ts_tool_value,
+            r#"  files_js_ts="$(ghi_filter_by_ext "$staged" "*.js" "*.jsx" "*.ts" "*.tsx")"
+  files_js_ts_json="$(ghi_filter_by_ext "$staged" "*.js" "*.jsx" "*.ts" "*.tsx" "*.json")"
+"#,
+            r#"ghi_run_js_ts_biome() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ghi_has_cmd biome; then
+    ghi_echo "Running biome (fix + lint)..."
+    biome check --write $files
+    return 0
+  fi
+
+  if ghi_has_cmd npx; then
+    ghi_echo "Running biome via npx (fix + lint)..."
+    npx --no-install biome check --write $files
+    return 0
+  fi
+
+  ghi_echo "biome not found; skipping JS/TS"
+  return 0
+}
+
+ghi_run_js_ts_prettier_eslint() {
+  files_js_ts_json="$1"
+  files_js_ts="$2"
+
+  if [ -n "$files_js_ts_json" ]; then
+    if ghi_has_cmd prettier; then
+      ghi_echo "Running prettier (fix)..."
+      prettier --write $files_js_ts_json
+    elif ghi_has_cmd npx; then
+      ghi_echo "Running prettier via npx (fix)..."
+      npx --no-install prettier --write $files_js_ts_json
+    else
+      ghi_echo "prettier not found; skipping prettier"
+    fi
+  fi
+
+  if [ -n "$files_js_ts" ]; then
+    if ghi_has_cmd eslint; then
+      ghi_echo "Running eslint (fix)..."
+      eslint --fix $files_js_ts
+    elif ghi_has_cmd npx; then
+      ghi_echo "Running eslint via npx (fix)..."
+      npx --no-install eslint --fix $files_js_ts
+    else
+      ghi_echo "eslint not found; skipping eslint"
+    fi
+  fi
+}
+"#,
+            r#"  # JS/TS + JSON
+  if [ "$GHI_JS_TS_TOOL" = "biome" ]; then
+    ghi_run_js_ts_biome "$files_js_ts_json"
+  else
+    ghi_run_js_ts_prettier_eslint "$files_js_ts_json" "$files_js_ts"
+  fi
+  ghi_git_add_list "$files_js_ts_json"
+"#,
+            r#"  # Markdown/YAML always uses prettier if available.
+  if [ -n "$files_md_yaml" ]; then
+    if ghi_has_cmd prettier; then
+      ghi_echo "Running prettier on Markdown/YAML (fix)..."
+      prettier --write $files_md_yaml
+      ghi_git_add_list "$files_md_yaml"
+    elif ghi_has_cmd npx; then
+      ghi_echo "Running prettier via npx on Markdown/YAML (fix)..."
+      npx --no-install prettier --write $files_md_yaml
+      ghi_git_add_list "$files_md_yaml"
+    else
+      ghi_echo "prettier not found; skipping Markdown/YAML formatting"
+    fi
+  fi
+"#,
+        )
+    } else {
+        ("", "(disabled)", "", "", "", "")
     };
 
     let python_tool = match settings.python_tool {
@@ -39,7 +132,7 @@ pub fn managed_pre_commit_block(settings: &ManagedPreCommitSettings, repo_root: 
         r#"{MANAGED_BLOCK_BEGIN}
 # git-hook-installer settings (stored locally in this hook file):
 #   enabled={enabled}
-#   js_ts_tool={js_ts_tool}
+#   js_ts_tool={js_ts_tool_note}
 #   python_tool={python_tool}
 #   java_kotlin_tool={java_kotlin_tool}
 #   cargo_manifest_dir={cargo_manifest_dir_note}
@@ -48,7 +141,7 @@ pub fn managed_pre_commit_block(settings: &ManagedPreCommitSettings, repo_root: 
 #   rollback_on_error=git reset --hard + re-apply saved index diff (+ stash pop if used)
 
 GHI_ENABLED={enabled}
-GHI_JS_TS_TOOL="{js_ts_tool}"
+GHI_JS_TS_TOOL="{js_ts_tool_value}"
 GHI_PYTHON_TOOL="{python_tool}"
 GHI_JAVA_KOTLIN_TOOL="{java_kotlin_tool}"
 GHI_CARGO_MANIFEST_DIR="{cargo_manifest_dir_for_shell}"
@@ -161,56 +254,7 @@ ghi_cleanup() {{
   fi
 }}
 
-ghi_run_js_ts_biome() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ghi_has_cmd biome; then
-    ghi_echo "Running biome (fix + lint)..."
-    biome check --write $files
-    return 0
-  fi
-
-  if ghi_has_cmd npx; then
-    ghi_echo "Running biome via npx (fix + lint)..."
-    npx --no-install biome check --write $files
-    return 0
-  fi
-
-  ghi_echo "biome not found; skipping JS/TS"
-  return 0
-}}
-
-ghi_run_js_ts_prettier_eslint() {{
-  files_js_ts_json="$1"
-  files_js_ts="$2"
-
-  if [ -n "$files_js_ts_json" ]; then
-    if ghi_has_cmd prettier; then
-      ghi_echo "Running prettier (fix)..."
-      prettier --write $files_js_ts_json
-    elif ghi_has_cmd npx; then
-      ghi_echo "Running prettier via npx (fix)..."
-      npx --no-install prettier --write $files_js_ts_json
-    else
-      ghi_echo "prettier not found; skipping prettier"
-    fi
-  fi
-
-  if [ -n "$files_js_ts" ]; then
-    if ghi_has_cmd eslint; then
-      ghi_echo "Running eslint (fix)..."
-      eslint --fix $files_js_ts
-    elif ghi_has_cmd npx; then
-      ghi_echo "Running eslint via npx (fix)..."
-      npx --no-install eslint --fix $files_js_ts
-    else
-      ghi_echo "eslint not found; skipping eslint"
-    fi
-  fi
-}}
+{js_ts_functions}
 
 ghi_run_python_ruff() {{
   files="$1"
@@ -416,8 +460,6 @@ ghi_main() {{
   fi
 
   # Filter file lists.
-  files_js_ts="$(ghi_filter_by_ext "$staged" "*.js" "*.jsx" "*.ts" "*.tsx")"
-  files_js_ts_json="$(ghi_filter_by_ext "$staged" "*.js" "*.jsx" "*.ts" "*.tsx" "*.json")"
   files_md_yaml="$(ghi_filter_by_ext "$staged" "*.md" "*.markdown" "*.yml" "*.yaml")"
   files_py="$(ghi_filter_by_ext "$staged" "*.py")"
   files_go="$(ghi_filter_by_ext "$staged" "*.go")"
@@ -426,29 +468,10 @@ ghi_main() {{
   files_c_cpp="$(ghi_filter_by_ext "$staged" "*.c" "*.cc" "*.cpp" "*.cxx" "*.h" "*.hh" "*.hpp" "*.hxx")"
   files_kt="$(ghi_filter_by_ext "$staged" "*.kt" "*.kts")"
   files_rb="$(ghi_filter_by_ext "$staged" "*.rb")"
+{js_ts_filter_lines}
 
-  # JS/TS + JSON
-  if [ "$GHI_JS_TS_TOOL" = "biome" ]; then
-    ghi_run_js_ts_biome "$files_js_ts_json"
-  else
-    ghi_run_js_ts_prettier_eslint "$files_js_ts_json" "$files_js_ts"
-  fi
-  ghi_git_add_list "$files_js_ts_json"
-
-  # Markdown/YAML always uses prettier if available.
-  if [ -n "$files_md_yaml" ]; then
-    if ghi_has_cmd prettier; then
-      ghi_echo "Running prettier on Markdown/YAML (fix)..."
-      prettier --write $files_md_yaml
-      ghi_git_add_list "$files_md_yaml"
-    elif ghi_has_cmd npx; then
-      ghi_echo "Running prettier via npx on Markdown/YAML (fix)..."
-      npx --no-install prettier --write $files_md_yaml
-      ghi_git_add_list "$files_md_yaml"
-    else
-      ghi_echo "prettier not found; skipping Markdown/YAML formatting"
-    fi
-  fi
+{js_ts_run_section}
+{md_yaml_section}
 
   # Python
   if [ "$GHI_PYTHON_TOOL" = "ruff" ]; then

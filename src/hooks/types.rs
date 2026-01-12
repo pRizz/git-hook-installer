@@ -28,7 +28,8 @@ pub enum JavaKotlinTool {
 #[derive(Debug, Clone)]
 pub struct ManagedPreCommitSettings {
     pub enabled: bool,
-    pub js_ts_tool: JsTsTool,
+    /// If `None`, the hook will not attempt JS/TS (or Prettier-based Markdown/YAML) formatting.
+    pub maybe_js_ts_tool: Option<JsTsTool>,
     pub python_tool: PythonTool,
     pub java_kotlin_tool: JavaKotlinTool,
     /// If set, `cargo fmt` will run from this directory.

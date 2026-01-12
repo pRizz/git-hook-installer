@@ -109,7 +109,7 @@ mod tests {
 
         let settings = ManagedPreCommitSettings {
             enabled: true,
-            js_ts_tool: JsTsTool::Biome,
+            maybe_js_ts_tool: Some(JsTsTool::Biome),
             python_tool: PythonTool::Ruff,
             java_kotlin_tool: JavaKotlinTool::Spotless,
             maybe_cargo_manifest_dir: None,
