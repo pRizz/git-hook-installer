@@ -97,6 +97,11 @@ fn inspect_pre_commit(
 
     println!("pre-commit readable: true");
 
+    let has_managed_block = contents
+        .lines()
+        .any(|line| line.trim() == "# >>> git-hook-installer managed block >>>");
+    println!("pre-commit has git-hook-installer managed block: {has_managed_block}");
+
     let looks_like_cargo_fmt = contents.lines().any(|line| line.trim() == "cargo fmt");
     println!("pre-commit runs cargo fmt: {looks_like_cargo_fmt}");
 
@@ -104,15 +109,19 @@ fn inspect_pre_commit(
         println!("pre-commit cd: {cd_dir}");
     }
 
-    if let Some(manifest_dir) = maybe_manifest_dir {
-        let expected = cargo_fmt_pre_commit_script(manifest_dir);
-        let is_exact_match = normalize_newlines(&contents) == normalize_newlines(&expected);
-        println!(
-            "pre-commit matches expected cargo-fmt hook: {is_exact_match} (manifest: {})",
-            relative_display(repo_root, manifest_dir)
-        );
-    } else if looks_like_cargo_fmt {
-        println!("pre-commit matches expected cargo-fmt hook: unknown (no manifest dir resolved)");
+    if !has_managed_block {
+        if let Some(manifest_dir) = maybe_manifest_dir {
+            let expected = cargo_fmt_pre_commit_script(manifest_dir);
+            let is_exact_match = normalize_newlines(&contents) == normalize_newlines(&expected);
+            println!(
+                "pre-commit matches expected cargo-fmt hook: {is_exact_match} (manifest: {})",
+                relative_display(repo_root, manifest_dir)
+            );
+        } else if looks_like_cargo_fmt {
+            println!(
+                "pre-commit matches expected cargo-fmt hook: unknown (no manifest dir resolved)"
+            );
+        }
     }
 
     if verbose {

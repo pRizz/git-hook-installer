@@ -20,7 +20,10 @@ use crate::cargo_repo::ResolveHookOptions;
 use crate::cli::{Cli, Command};
 use crate::git_repo::find_git_repo;
 use crate::hooks::InstallOptions;
-use crate::installer::{install_resolved_hook, resolve_hook_kind};
+use crate::installer::{
+    disable_managed_pre_commit, install_resolved_hook, resolve_hook_kind,
+    uninstall_managed_pre_commit,
+};
 use crate::status::print_status;
 
 fn main() -> Result<()> {
@@ -39,8 +42,11 @@ fn main() -> Result<()> {
         hook: None,
         manifest_dir: None,
     }) {
+        Command::Disable => disable_managed_pre_commit(&git_dir),
+        Command::Uninstall => uninstall_managed_pre_commit(&git_dir),
         Command::List => {
             println!("Available hooks:");
+            println!("- pre-commit");
             println!("- cargo-fmt-pre-commit");
             Ok(())
         }
@@ -68,6 +74,7 @@ fn main() -> Result<()> {
             install_resolved_hook(
                 resolved_hook,
                 &git_dir,
+                &repo_root,
                 InstallOptions {
                     yes: cli.yes,
                     non_interactive: cli.non_interactive,
