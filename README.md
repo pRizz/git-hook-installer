@@ -64,6 +64,7 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 - **safe overwrites**: if a hook already exists, it will prompt before backing it up (or use `--force` / `--yes`).
 - **hook installed**: `.git/hooks/pre-commit` contains a **managed block** (marked with `git-hook-installer` begin/end markers) which can run a set of formatters/linters and **re-stage** changes.
 - **no repo config**: all settings are stored **inside the hook file in `.git/hooks/`** (nothing is written to your repository).
+- **toolchain auto-selection**: the installer auto-detects the most likely JS/TS, Python, and Java/Kotlin toolchain from common config files (and falls back to sensible defaults). In interactive installs it prints a short “auto-selected/defaulting” summary; in `--non-interactive` mode it stays quiet.
 - **auto-fix safety**:
   - If you have **unstaged/untracked** changes, the hook stashes them with `git stash push --keep-index --include-untracked`, runs auto-fix on the staged files, re-stages, and then restores the stash.
   - If a formatting step errors, the hook attempts a **best-effort rollback** (reset + re-apply saved staged diff, plus stash restore if used).

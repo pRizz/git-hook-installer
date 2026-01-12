@@ -77,7 +77,7 @@ pub fn install_resolved_hook(
         ResolvedHook::PreCommit { settings } => {
             // Note: settings are stored inside the managed block itself (no repo config).
             // We still want the managed block to have an absolute manifest dir if present.
-            let block = managed_pre_commit_block(&settings, &repo_root);
+            let block = managed_pre_commit_block(&settings, repo_root);
             upsert_managed_pre_commit_hook(git_dir, &block, options)
         }
     }
