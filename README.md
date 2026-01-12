@@ -1,10 +1,20 @@
 # git-hook-installer
 
-A small Rust CLI that installs premade git hooks into the **current** repository.
+A small Rust CLI that installs a **managed git hook block** (currently `pre-commit`) with sensible defaults — **without adding any config files or DSLs to your repository**.
 
 [![crates.io](https://img.shields.io/crates/v/git-hook-installer.svg)](https://crates.io/crates/git-hook-installer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Repository](https://img.shields.io/badge/repo-github-blue)](https://github.com/pRizz/git-hook-installer)
+
+## Why this tool?
+
+There are lots of ways to manage git hooks. `git-hook-installer` is intentionally opinionated:
+
+- **No repo config / no new DSL**: nothing is written into your repo (no YAML/TOML config file, no “hook language” to learn). Settings live *inside the managed block* in `.git/hooks/`.
+- **Plays nicely with existing hooks**: it only adds/removes a clearly-marked managed block; it won’t clobber unrelated hook logic.
+- **Reasonable defaults (and avoids surprises)**: language/tooling sections are included only when there’s positive “proof” the repo uses that language.
+- **Safe and reversible**: snapshots are created before edits, and the hook uses safe stash/restore + best-effort rollback around auto-fix steps.
+- **Works for monorepos and many repos**: you can opt into scan mode (`--recursive`) to operate across many repositories under a directory.
 
 ## Install
 
@@ -48,7 +58,7 @@ confirmation unless `--yes` is used.
 Recursively install/update the managed `pre-commit` hook across many repos under a directory:
 
 ```bash
-# scans current directory (depth 0)
+# scans current directory (default depth is 1 when --recursive is present)
 git-hook-installer install --recursive
 
 # scan a directory
@@ -115,7 +125,6 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 ## Behavior
 
 - **git repo detection**: walks up parent directories looking for `.git` (supports worktrees where `.git` is a file).
-- **scan mode**: `install|disable|uninstall|status --recursive [--dir DIR] [--max-depth N]` scans for git repos under a directory and runs the command in each repo. The default scan depth is **0**, configurable via `--max-depth`.
 - **scan mode**: `install|disable|uninstall|status --recursive [--dir DIR] [--max-depth N]` scans for git repos under a directory and runs the command in each repo. If `--recursive` is provided and `--max-depth` is omitted, the effective default depth is **1**.
 - **safe overwrites**: if a hook already exists, it will prompt before backing it up (or use `--force` / `--yes`).
 - **hook installed**: `.git/hooks/pre-commit` contains a **managed block** (marked with `git-hook-installer` begin/end markers) which can run a set of formatters/linters and **re-stage** changes.
