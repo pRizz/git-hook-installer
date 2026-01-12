@@ -430,7 +430,7 @@ fn has_any_file_named_bounded(
                 let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
                     continue;
                 };
-                if names.iter().any(|candidate| name == *candidate) {
+                if names.contains(&name) {
                     return true;
                 }
                 continue;
