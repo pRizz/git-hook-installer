@@ -28,9 +28,19 @@ pub enum JavaKotlinTool {
 #[derive(Debug, Clone)]
 pub struct ManagedPreCommitSettings {
     pub enabled: bool,
-    pub js_ts_tool: JsTsTool,
-    pub python_tool: PythonTool,
-    pub java_kotlin_tool: JavaKotlinTool,
+    /// If `None`, the hook will not attempt JS/TS (or Prettier-based Markdown/YAML) formatting.
+    pub maybe_js_ts_tool: Option<JsTsTool>,
+    /// If true, the hook will run a `tsc --noEmit` typecheck for TS repos.
+    pub ts_typecheck_enabled: bool,
+    /// If `None`, the hook will not attempt Python formatting/linting.
+    pub maybe_python_tool: Option<PythonTool>,
+    /// If `None`, the hook will not attempt Java/Kotlin formatting/linting.
+    pub maybe_java_kotlin_tool: Option<JavaKotlinTool>,
+    pub go_enabled: bool,
+    pub shell_enabled: bool,
+    pub terraform_enabled: bool,
+    pub c_cpp_enabled: bool,
+    pub ruby_enabled: bool,
     /// If set, `cargo fmt` will run from this directory.
     pub maybe_cargo_manifest_dir: Option<PathBuf>,
 }
