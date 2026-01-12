@@ -47,7 +47,6 @@ fn main() -> Result<()> {
         Command::List => {
             println!("Available hooks:");
             println!("- pre-commit");
-            println!("- cargo-fmt-pre-commit");
             Ok(())
         }
         Command::Status {

@@ -10,8 +10,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 use crate::cargo_repo::{resolve_cargo_manifest_dir, ResolveHookOptions};
-use crate::hooks::{cargo_fmt_pre_commit_script, is_executable, MANAGED_BLOCK_BEGIN};
-use crate::util::{normalize_newlines, relative_display};
+use crate::hooks::{is_executable, MANAGED_BLOCK_BEGIN};
 
 pub fn print_status(
     cwd: &Path,
@@ -73,8 +72,8 @@ fn resolve_manifest_dir_for_status(
 
 fn inspect_pre_commit(
     hooks_dir: &Path,
-    repo_root: &Path,
-    maybe_manifest_dir: Option<&Path>,
+    _repo_root: &Path,
+    _maybe_manifest_dir: Option<&Path>,
     verbose: bool,
 ) -> Result<()> {
     let hook_path = hooks_dir.join("pre-commit");
@@ -107,20 +106,7 @@ fn inspect_pre_commit(
         println!("pre-commit cd: {cd_dir}");
     }
 
-    if !has_managed_block {
-        if let Some(manifest_dir) = maybe_manifest_dir {
-            let expected = cargo_fmt_pre_commit_script(manifest_dir);
-            let is_exact_match = normalize_newlines(&contents) == normalize_newlines(&expected);
-            println!(
-                "pre-commit matches expected cargo-fmt hook: {is_exact_match} (manifest: {})",
-                relative_display(repo_root, manifest_dir)
-            );
-        } else if looks_like_cargo_fmt {
-            println!(
-                "pre-commit matches expected cargo-fmt hook: unknown (no manifest dir resolved)"
-            );
-        }
-    }
+    // Note: we no longer attempt to match an exact pre-commit hook script; we only report state.
 
     if verbose {
         print_hook_summary(&contents);

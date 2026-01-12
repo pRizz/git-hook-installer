@@ -33,7 +33,7 @@ pub enum Command {
         #[arg(value_enum)]
         hook: Option<HookKind>,
 
-        /// Directory containing the Cargo.toml to use (only used for pre-commit / cargo-fmt-pre-commit)
+        /// Directory containing the Cargo.toml to use (only used for pre-commit)
         #[arg(long, value_name = "DIR")]
         manifest_dir: Option<PathBuf>,
     },
@@ -59,6 +59,4 @@ pub enum Command {
 pub enum HookKind {
     /// pre-commit hook that runs common formatters/linters (managed block)
     PreCommit,
-    /// pre-commit hook that runs `cargo fmt` (legacy standalone hook)
-    CargoFmtPreCommit,
 }

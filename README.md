@@ -52,12 +52,6 @@ Uninstall the managed `pre-commit` block (preserves any other pre-commit logic y
 git-hook-installer uninstall
 ```
 
-Install the legacy standalone `cargo fmt` pre-commit hook directly:
-
-```bash
-git-hook-installer install cargo-fmt-pre-commit
-```
-
 If your repo has multiple `Cargo.toml` files (monorepo), pick which one the hook should use:
 
 ```bash

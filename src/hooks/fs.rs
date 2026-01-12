@@ -10,27 +10,6 @@ use crate::hooks::managed_block::{ensure_shebang, MANAGED_BLOCK_BEGIN, MANAGED_B
 use crate::hooks::snapshots::{create_hook_snapshot_and_prune, DEFAULT_MAX_SNAPSHOTS};
 use crate::hooks::types::InstallOptions;
 
-pub fn install_hook_script(
-    git_dir: &Path,
-    hook_name: &str,
-    hook_contents: &str,
-    options: InstallOptions,
-) -> Result<()> {
-    let hooks_dir = git_dir.join("hooks");
-    fs::create_dir_all(&hooks_dir).with_context(|| {
-        format!(
-            "Failed to create hooks directory at {}",
-            hooks_dir.display()
-        )
-    })?;
-
-    let hook_path = hooks_dir.join(hook_name);
-    write_hook_file(&hook_path, hook_contents.as_bytes(), options)?;
-
-    println!("Installed `{}` hook at {}", hook_name, hook_path.display());
-    Ok(())
-}
-
 pub fn upsert_managed_block_in_file(path: &Path, block: &str, options: InstallOptions) -> Result<()> {
     let existing = if path.exists() {
         let contents = fs::read_to_string(path)
@@ -102,21 +81,6 @@ pub fn handle_existing_hook(path: &Path, options: InstallOptions) -> Result<()> 
     }
 
     backup_existing_hook(path)
-}
-
-fn write_hook_file(path: &Path, contents: &[u8], options: InstallOptions) -> Result<()> {
-    if path.exists() {
-        handle_existing_hook(path, options)?;
-    }
-
-    let mut file = fs::File::create(path)
-        .with_context(|| format!("Failed to create hook file at {}", path.display()))?;
-    file.write_all(contents)
-        .with_context(|| format!("Failed to write hook file at {}", path.display()))?;
-
-    set_executable(path)
-        .with_context(|| format!("Failed to mark {} as executable", path.display()))?;
-    Ok(())
 }
 
 fn backup_existing_hook(path: &Path) -> Result<()> {

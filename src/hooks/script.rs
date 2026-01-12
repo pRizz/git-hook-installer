@@ -4,26 +4,6 @@ use crate::hooks::managed_block::{MANAGED_BLOCK_BEGIN, MANAGED_BLOCK_END};
 use crate::hooks::types::{JavaKotlinTool, JsTsTool, ManagedPreCommitSettings, PythonTool};
 use crate::util::relative_display;
 
-pub fn cargo_fmt_pre_commit_script(cargo_dir: &Path) -> String {
-    format!(
-        r#"#!/bin/sh
-set -e
-
-cd "{}"
-
-if ! command -v cargo >/dev/null 2>&1; then
-  echo "cargo not found; skipping cargo fmt"
-  exit 0
-fi
-
-echo "Running cargo fmt..."
-cargo fmt
-
-"#,
-        shell_escape_path(cargo_dir)
-    )
-}
-
 pub fn managed_pre_commit_block(settings: &ManagedPreCommitSettings, repo_root: &Path) -> String {
     let js_ts_tool = match settings.js_ts_tool {
         JsTsTool::Biome => "biome",
