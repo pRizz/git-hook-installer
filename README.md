@@ -73,6 +73,7 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 - **auto-fix safety**:
   - If you have **unstaged/untracked** changes, the hook stashes them with `git stash push --keep-index --include-untracked`, runs auto-fix on the staged files, re-stages, and then restores the stash.
   - If a formatting step errors, the hook attempts a **best-effort rollback** (reset + re-apply saved staged diff, plus stash restore if used).
+- **snapshots before edits**: before `git-hook-installer` modifies `.git/hooks/pre-commit`, it snapshots the current file to `.git/hooks/pre-commit.snapshot-YYYY-MM-DD-HH-MM-SS` and keeps the newest **10** snapshots by default.
 
 ## Options
 
