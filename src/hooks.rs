@@ -95,6 +95,51 @@ pub fn uninstall_managed_pre_commit_hook(git_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Best-effort uninstall of the managed `pre-commit` hook block.
+///
+/// This is intended for bulk/recursive operations where it's common for some repos to have:
+/// - no `pre-commit` hook at all, or
+/// - a `pre-commit` hook that doesn't contain a git-hook-installer managed block.
+///
+/// In those cases, this function returns `Ok(())` without changing anything.
+pub fn uninstall_managed_pre_commit_hook_best_effort(git_dir: &Path) -> Result<()> {
+    let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
+    if !hook_path.exists() {
+        println!("No {} hook at {}; skipping.", PRE_COMMIT_HOOK_NAME, hook_path.display());
+        return Ok(());
+    }
+
+    let contents = stdfs::read_to_string(&hook_path)
+        .with_context(|| format!("Failed to read {}", hook_path.display()))?;
+
+    let has_managed = contents.contains(managed_block::MANAGED_BLOCK_BEGIN)
+        && contents.contains(managed_block::MANAGED_BLOCK_END);
+    if !has_managed {
+        println!(
+            "No managed git-hook-installer block found in {}; skipping.",
+            hook_path.display()
+        );
+        return Ok(());
+    }
+
+    let updated = managed_block::uninstall_managed_block(&contents)?;
+
+    if updated.trim().is_empty() {
+        snapshots::create_hook_snapshot_and_prune(&hook_path, snapshots::DEFAULT_MAX_SNAPSHOTS)?;
+        stdfs::remove_file(&hook_path)
+            .with_context(|| format!("Failed to remove {}", hook_path.display()))?;
+        println!("Removed {}", hook_path.display());
+        return Ok(());
+    }
+
+    fs::write_hook_with_snapshot_if_changed(&hook_path, &contents, &updated)?;
+    println!(
+        "Uninstalled managed git-hook-installer block in {}",
+        hook_path.display()
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,6 +182,42 @@ mod tests {
         // assert
         let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
         assert!(hook_path.is_file());
+        Ok(())
+    }
+
+    #[test]
+    fn uninstall_managed_pre_commit_hook_best_effort_skips_when_hook_missing() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        let git_dir = temp.path().join(".git");
+        std::fs::create_dir_all(git_dir.join("hooks"))?;
+
+        // act
+        uninstall_managed_pre_commit_hook_best_effort(&git_dir)?;
+
+        // assert
+        let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
+        assert!(!hook_path.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn uninstall_managed_pre_commit_hook_best_effort_skips_when_managed_block_missing() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        let git_dir = temp.path().join(".git");
+        std::fs::create_dir_all(git_dir.join("hooks"))?;
+
+        let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
+        let original = "#!/usr/bin/env bash\necho hello\n";
+        std::fs::write(&hook_path, original)?;
+
+        // act
+        uninstall_managed_pre_commit_hook_best_effort(&git_dir)?;
+
+        // assert
+        let after = std::fs::read_to_string(&hook_path)?;
+        assert_eq!(after, original);
         Ok(())
     }
 }

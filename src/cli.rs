@@ -64,6 +64,21 @@ pub enum Command {
     Disable,
     /// Uninstall the managed `pre-commit` hook block installed by git-hook-installer
     Uninstall,
+    /// Uninstall the managed `pre-commit` hook block across many git repos under a directory
+    ///
+    /// This is useful when you have a parent folder containing many repositories.
+    /// By default, the scan root is the current directory.
+    UninstallRecursive {
+        /// How deep to scan for git repositories (default: 1)
+        ///
+        /// Depth 1 scans the scan-root and its immediate children.
+        #[arg(long, default_value_t = 1, value_name = "N")]
+        max_depth: usize,
+
+        /// Directory to scan for git repos (defaults to current directory)
+        #[arg(value_name = "DIR")]
+        dir: Option<PathBuf>,
+    },
     /// List available premade hooks
     List,
     /// Inspect and report current hook state for this repository
