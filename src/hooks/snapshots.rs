@@ -46,7 +46,10 @@ pub fn create_hook_snapshot_and_prune(hook_path: &Path, max_snapshots: usize) ->
         )
     })?;
 
-    println!("Created snapshot of existing hook at {}", snapshot_path.display());
+    println!(
+        "Created snapshot of existing hook at {}",
+        snapshot_path.display()
+    );
 
     prune_hook_snapshots(parent, &prefix, max_snapshots)?;
     Ok(())
@@ -57,12 +60,8 @@ pub fn prune_hook_snapshots(hooks_dir: &Path, prefix: &str, max_snapshots: usize
         return Ok(());
     }
 
-    let entries = fs::read_dir(hooks_dir).with_context(|| {
-        format!(
-            "Failed to list hooks directory at {}",
-            hooks_dir.display()
-        )
-    })?;
+    let entries = fs::read_dir(hooks_dir)
+        .with_context(|| format!("Failed to list hooks directory at {}", hooks_dir.display()))?;
 
     let mut snapshots: Vec<String> = Vec::new();
     for entry in entries {
@@ -141,4 +140,3 @@ mod tests {
         Ok(())
     }
 }
-

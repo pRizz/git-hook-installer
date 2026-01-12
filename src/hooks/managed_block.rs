@@ -72,7 +72,9 @@ pub fn uninstall_managed_block(existing: &str) -> Result<String> {
     }
 
     let (Some(start), Some(end)) = (start_idx, end_idx) else {
-        return Err(anyhow!("No managed git-hook-installer block found in pre-commit hook"));
+        return Err(anyhow!(
+            "No managed git-hook-installer block found in pre-commit hook"
+        ));
     };
     if start > end {
         return Err(anyhow!("Invalid managed block markers in pre-commit hook"));
@@ -100,7 +102,9 @@ pub fn disable_managed_block(existing: &str) -> Result<String> {
     }
 
     let (Some(start), Some(end)) = (start_idx, end_idx) else {
-        return Err(anyhow!("No managed git-hook-installer block found in pre-commit hook"));
+        return Err(anyhow!(
+            "No managed git-hook-installer block found in pre-commit hook"
+        ));
     };
     if start > end {
         return Err(anyhow!("Invalid managed block markers in pre-commit hook"));
@@ -125,7 +129,9 @@ pub fn disable_managed_block(existing: &str) -> Result<String> {
     }
 
     if !did_change {
-        return Err(anyhow!("Managed block found, but no GHI_ENABLED setting line was found"));
+        return Err(anyhow!(
+            "Managed block found, but no GHI_ENABLED setting line was found"
+        ));
     }
 
     Ok(normalize_newline_join(&out))
@@ -162,9 +168,7 @@ mod tests {
     fn upsert_managed_block_inserts_after_shebang_when_missing() -> Result<()> {
         // arrange
         let existing = "#!/bin/sh\necho hi\n";
-        let block = format!(
-            "{MANAGED_BLOCK_BEGIN}\nGHI_ENABLED=1\n{MANAGED_BLOCK_END}\n"
-        );
+        let block = format!("{MANAGED_BLOCK_BEGIN}\nGHI_ENABLED=1\n{MANAGED_BLOCK_END}\n");
 
         // act
         let updated = upsert_managed_block(existing, &block);
@@ -201,4 +205,3 @@ mod tests {
         Ok(())
     }
 }
-

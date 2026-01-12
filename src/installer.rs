@@ -45,7 +45,8 @@ pub fn resolve_hook_kind(
                 },
             );
 
-            let settings = prompts::resolve_pre_commit_settings(repo_root, maybe_cargo_dir, options)?;
+            let settings =
+                prompts::resolve_pre_commit_settings(repo_root, maybe_cargo_dir, options)?;
 
             if options.non_interactive || options.yes {
                 return Ok(Some(ResolvedHook::PreCommit { settings }));

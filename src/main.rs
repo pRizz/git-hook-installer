@@ -49,9 +49,7 @@ fn main() -> Result<()> {
             println!("- pre-commit");
             Ok(())
         }
-        Command::Status {
-            verbose,
-        } => print_status(&repo_root, &git_dir, verbose),
+        Command::Status { verbose } => print_status(&repo_root, &git_dir, verbose),
         Command::Install { hook, manifest_dir } => {
             let maybe_resolved_hook = resolve_hook_kind(
                 hook,

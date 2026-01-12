@@ -128,7 +128,10 @@ fn has_prettier_or_eslint_config(repo_root: &Path) -> bool {
         "eslint.config.cjs",
         "eslint.config.mjs",
     ];
-    if eslint_configs.iter().any(|name| repo_root.join(name).is_file()) {
+    if eslint_configs
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
         return true;
     }
 
@@ -246,4 +249,3 @@ mod tests {
         Ok(())
     }
 }
-

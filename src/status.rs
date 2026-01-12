@@ -11,11 +11,7 @@ use anyhow::Result;
 
 use crate::hooks::{is_executable, MANAGED_BLOCK_BEGIN};
 
-pub fn print_status(
-    repo_root: &Path,
-    git_dir: &Path,
-    verbose: bool,
-) -> Result<()> {
+pub fn print_status(repo_root: &Path, git_dir: &Path, verbose: bool) -> Result<()> {
     let hooks_dir = git_dir.join("hooks");
 
     println!("Repository: {}", repo_root.display());
@@ -32,10 +28,7 @@ pub fn print_status(
     Ok(())
 }
 
-fn inspect_pre_commit(
-    hooks_dir: &Path,
-    verbose: bool,
-) -> Result<()> {
+fn inspect_pre_commit(hooks_dir: &Path, verbose: bool) -> Result<()> {
     let hook_path = hooks_dir.join("pre-commit");
     if !hook_path.exists() {
         println!("pre-commit: not installed");
@@ -56,7 +49,9 @@ fn inspect_pre_commit(
 
     println!("pre-commit readable: true");
 
-    let has_managed_block = contents.lines().any(|line| line.trim() == MANAGED_BLOCK_BEGIN);
+    let has_managed_block = contents
+        .lines()
+        .any(|line| line.trim() == MANAGED_BLOCK_BEGIN);
     println!("pre-commit has git-hook-installer managed block: {has_managed_block}");
 
     let looks_like_cargo_fmt = contents.lines().any(|line| line.trim() == "cargo fmt");

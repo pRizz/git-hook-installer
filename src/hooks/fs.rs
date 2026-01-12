@@ -10,7 +10,11 @@ use crate::hooks::managed_block::{ensure_shebang, MANAGED_BLOCK_BEGIN, MANAGED_B
 use crate::hooks::snapshots::{create_hook_snapshot_and_prune, DEFAULT_MAX_SNAPSHOTS};
 use crate::hooks::types::InstallOptions;
 
-pub fn upsert_managed_block_in_file(path: &Path, block: &str, options: InstallOptions) -> Result<()> {
+pub fn upsert_managed_block_in_file(
+    path: &Path,
+    block: &str,
+    options: InstallOptions,
+) -> Result<()> {
     let existing = if path.exists() {
         let contents = fs::read_to_string(path)
             .with_context(|| format!("Failed to read hook file at {}", path.display()))?;
@@ -22,7 +26,8 @@ pub fn upsert_managed_block_in_file(path: &Path, block: &str, options: InstallOp
     let updated = match existing.as_deref() {
         None => ensure_shebang(block),
         Some(contents) => {
-            let has_managed = contents.contains(MANAGED_BLOCK_BEGIN) && contents.contains(MANAGED_BLOCK_END);
+            let has_managed =
+                contents.contains(MANAGED_BLOCK_BEGIN) && contents.contains(MANAGED_BLOCK_END);
             if !has_managed {
                 // This is an existing user hook; get consent and back it up before modifying.
                 handle_existing_hook(path, options)?;
@@ -46,7 +51,11 @@ pub fn upsert_managed_block_in_file(path: &Path, block: &str, options: InstallOp
     Ok(())
 }
 
-pub fn write_hook_with_snapshot_if_changed(path: &Path, existing: &str, updated: &str) -> Result<()> {
+pub fn write_hook_with_snapshot_if_changed(
+    path: &Path,
+    existing: &str,
+    updated: &str,
+) -> Result<()> {
     if existing == updated {
         return Ok(());
     }
@@ -152,4 +161,3 @@ pub fn is_executable(path: &Path) -> Option<bool> {
 pub fn is_executable(_path: &Path) -> Option<bool> {
     None
 }
-

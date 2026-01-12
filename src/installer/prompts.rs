@@ -49,7 +49,11 @@ pub fn resolve_pre_commit_settings(
 
         print_tool_choice("JS/TS toolchain", js_ts_choice, js_ts_display);
         print_tool_choice("Python toolchain", python_choice, python_display);
-        print_tool_choice("Java/Kotlin toolchain", java_kotlin_choice, java_kotlin_display);
+        print_tool_choice(
+            "Java/Kotlin toolchain",
+            java_kotlin_choice,
+            java_kotlin_display,
+        );
     }
 
     // We intentionally avoid prompting for toolchain selection:
@@ -69,4 +73,3 @@ pub fn resolve_pre_commit_settings(
         maybe_cargo_manifest_dir: maybe_cargo_dir,
     })
 }
-

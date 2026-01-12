@@ -517,4 +517,3 @@ pub fn shell_escape_path(path: &Path) -> String {
     }
     escaped
 }
-

@@ -49,21 +49,30 @@ pub fn upsert_managed_pre_commit_hook(
 pub fn disable_managed_pre_commit_hook(git_dir: &Path) -> Result<()> {
     let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
     if !hook_path.exists() {
-        return Err(anyhow!("No pre-commit hook exists at {}", hook_path.display()));
+        return Err(anyhow!(
+            "No pre-commit hook exists at {}",
+            hook_path.display()
+        ));
     }
 
     let contents = stdfs::read_to_string(&hook_path)
         .with_context(|| format!("Failed to read {}", hook_path.display()))?;
     let updated = managed_block::disable_managed_block(&contents)?;
     fs::write_hook_with_snapshot_if_changed(&hook_path, &contents, &updated)?;
-    println!("Disabled managed git-hook-installer block in {}", hook_path.display());
+    println!(
+        "Disabled managed git-hook-installer block in {}",
+        hook_path.display()
+    );
     Ok(())
 }
 
 pub fn uninstall_managed_pre_commit_hook(git_dir: &Path) -> Result<()> {
     let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
     if !hook_path.exists() {
-        return Err(anyhow!("No pre-commit hook exists at {}", hook_path.display()));
+        return Err(anyhow!(
+            "No pre-commit hook exists at {}",
+            hook_path.display()
+        ));
     }
 
     let contents = stdfs::read_to_string(&hook_path)
@@ -71,10 +80,7 @@ pub fn uninstall_managed_pre_commit_hook(git_dir: &Path) -> Result<()> {
     let updated = managed_block::uninstall_managed_block(&contents)?;
 
     if updated.trim().is_empty() {
-        snapshots::create_hook_snapshot_and_prune(
-            &hook_path,
-            snapshots::DEFAULT_MAX_SNAPSHOTS,
-        )?;
+        snapshots::create_hook_snapshot_and_prune(&hook_path, snapshots::DEFAULT_MAX_SNAPSHOTS)?;
         stdfs::remove_file(&hook_path)
             .with_context(|| format!("Failed to remove {}", hook_path.display()))?;
         println!("Removed {}", hook_path.display());
@@ -82,7 +88,10 @@ pub fn uninstall_managed_pre_commit_hook(git_dir: &Path) -> Result<()> {
     }
 
     fs::write_hook_with_snapshot_if_changed(&hook_path, &contents, &updated)?;
-    println!("Uninstalled managed git-hook-installer block in {}", hook_path.display());
+    println!(
+        "Uninstalled managed git-hook-installer block in {}",
+        hook_path.display()
+    );
     Ok(())
 }
 
@@ -125,4 +134,3 @@ mod tests {
         Ok(())
     }
 }
-

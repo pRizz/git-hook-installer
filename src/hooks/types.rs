@@ -34,4 +34,3 @@ pub struct ManagedPreCommitSettings {
     /// If set, `cargo fmt` will run from this directory.
     pub maybe_cargo_manifest_dir: Option<PathBuf>,
 }
-
