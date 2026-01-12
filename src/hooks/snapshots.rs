@@ -46,6 +46,8 @@ pub fn create_hook_snapshot_and_prune(hook_path: &Path, max_snapshots: usize) ->
         )
     })?;
 
+    println!("Created snapshot of existing hook at {}", snapshot_path.display());
+
     prune_hook_snapshots(parent, &prefix, max_snapshots)?;
     Ok(())
 }
