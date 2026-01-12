@@ -36,9 +36,11 @@ If you want to operate across many repositories under a directory, enable **scan
 `--recursive` (or by providing `--dir` / `--max-depth`).
 
 - **scan root**: `--dir DIR` (defaults to current directory)
-- **scan depth**: `--max-depth N` (defaults to **0**)
-  - Depth **0** scans **only the scan-root directory itself**
-  - Depth **1** scans the scan-root and its immediate children
+- **scan depth**: `--max-depth N`
+  - If `--recursive` is provided and `--max-depth` is omitted, the effective default is **1**
+  - Otherwise (e.g. if scan mode is triggered by `--dir` alone), the effective default is **0**
+    - Depth **0** scans **only the scan-root directory itself**
+    - Depth **1** scans the scan-root and its immediate children
 
 In scan mode, mutating operations (`install`, `disable`, `uninstall`) show a repo preview and ask for
 confirmation unless `--yes` is used.
@@ -114,6 +116,7 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 
 - **git repo detection**: walks up parent directories looking for `.git` (supports worktrees where `.git` is a file).
 - **scan mode**: `install|disable|uninstall|status --recursive [--dir DIR] [--max-depth N]` scans for git repos under a directory and runs the command in each repo. The default scan depth is **0**, configurable via `--max-depth`.
+- **scan mode**: `install|disable|uninstall|status --recursive [--dir DIR] [--max-depth N]` scans for git repos under a directory and runs the command in each repo. If `--recursive` is provided and `--max-depth` is omitted, the effective default depth is **1**.
 - **safe overwrites**: if a hook already exists, it will prompt before backing it up (or use `--force` / `--yes`).
 - **hook installed**: `.git/hooks/pre-commit` contains a **managed block** (marked with `git-hook-installer` begin/end markers) which can run a set of formatters/linters and **re-stage** changes.
 - **no repo config**: all settings are stored **inside the hook file in `.git/hooks/`** (nothing is written to your repository).

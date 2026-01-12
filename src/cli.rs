@@ -48,8 +48,10 @@ pub enum Command {
         ///
         /// Depth 0 scans only the scan-root directory itself.
         /// Depth 1 scans the scan-root and its immediate children.
-        #[arg(long, default_value_t = 0, value_name = "N")]
-        max_depth: usize,
+        ///
+        /// Note: if `--recursive` is provided and `--max-depth` is omitted, the effective default is 1.
+        #[arg(long, value_name = "N")]
+        max_depth: Option<usize>,
 
         /// Directory to scan for git repos when in scan mode (defaults to current directory)
         #[arg(long, value_name = "DIR")]
@@ -68,8 +70,10 @@ pub enum Command {
         ///
         /// Depth 0 scans only the scan-root directory itself.
         /// Depth 1 scans the scan-root and its immediate children.
-        #[arg(long, default_value_t = 0, value_name = "N")]
-        max_depth: usize,
+        ///
+        /// Note: if `--recursive` is provided and `--max-depth` is omitted, the effective default is 1.
+        #[arg(long, value_name = "N")]
+        max_depth: Option<usize>,
 
         /// Directory to scan for git repos when in scan mode (defaults to current directory)
         #[arg(long, value_name = "DIR")]
@@ -88,8 +92,10 @@ pub enum Command {
         ///
         /// Depth 0 scans only the scan-root directory itself.
         /// Depth 1 scans the scan-root and its immediate children.
-        #[arg(long, default_value_t = 0, value_name = "N")]
-        max_depth: usize,
+        ///
+        /// Note: if `--recursive` is provided and `--max-depth` is omitted, the effective default is 1.
+        #[arg(long, value_name = "N")]
+        max_depth: Option<usize>,
 
         /// Directory to scan for git repos when in scan mode (defaults to current directory)
         #[arg(long, value_name = "DIR")]
@@ -114,8 +120,10 @@ pub enum Command {
         ///
         /// Depth 0 scans only the scan-root directory itself.
         /// Depth 1 scans the scan-root and its immediate children.
-        #[arg(long, default_value_t = 0, value_name = "N")]
-        max_depth: usize,
+        ///
+        /// Note: if `--recursive` is provided and `--max-depth` is omitted, the effective default is 1.
+        #[arg(long, value_name = "N")]
+        max_depth: Option<usize>,
 
         /// Directory to scan for git repos when in scan mode (defaults to current directory)
         #[arg(long, value_name = "DIR")]

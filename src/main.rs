@@ -61,7 +61,7 @@ fn main() -> Result<()> {
         hook: None,
         manifest_dir: None,
         recursive: false,
-        max_depth: 0,
+        max_depth: None,
         dir: None,
     });
 
@@ -78,15 +78,16 @@ fn main() -> Result<()> {
             max_depth,
             dir,
         } => {
-            let scan_mode = recursive || dir.is_some() || max_depth != 0;
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
             if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
                 let scan_root = dir.unwrap_or(cwd);
                 println!(
                     "Scanning {} for git repositories (max depth: {})",
                     scan_root.display(),
-                    max_depth
+                    effective_max_depth
                 );
-                let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
                 if repos.is_empty() {
                     println!("No git repositories found under {}", scan_root.display());
                     return Ok(());
@@ -191,15 +192,16 @@ fn main() -> Result<()> {
             max_depth,
             dir,
         } => {
-            let scan_mode = recursive || dir.is_some() || max_depth != 0;
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
             if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
                 let scan_root = dir.unwrap_or(cwd);
                 println!(
                     "Scanning {} for git repositories (max depth: {})",
                     scan_root.display(),
-                    max_depth
+                    effective_max_depth
                 );
-                let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
                 if repos.is_empty() {
                     println!("No git repositories found under {}", scan_root.display());
                     return Ok(());
@@ -272,15 +274,16 @@ fn main() -> Result<()> {
             max_depth,
             dir,
         } => {
-            let scan_mode = recursive || dir.is_some() || max_depth != 0;
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
             if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
                 let scan_root = dir.unwrap_or(cwd);
                 println!(
                     "Scanning {} for git repositories (max depth: {})",
                     scan_root.display(),
-                    max_depth
+                    effective_max_depth
                 );
-                let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
                 if repos.is_empty() {
                     println!("No git repositories found under {}", scan_root.display());
                     return Ok(());
@@ -354,15 +357,16 @@ fn main() -> Result<()> {
             max_depth,
             dir,
         } => {
-            let scan_mode = recursive || dir.is_some() || max_depth != 0;
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
             if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
                 let scan_root = dir.unwrap_or(cwd);
                 println!(
                     "Scanning {} for git repositories (max depth: {})",
                     scan_root.display(),
-                    max_depth
+                    effective_max_depth
                 );
-                let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
                 if repos.is_empty() {
                     println!("No git repositories found under {}", scan_root.display());
                     return Ok(());
