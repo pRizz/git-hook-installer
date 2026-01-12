@@ -62,6 +62,21 @@ pub enum Command {
     },
     /// Disable the managed `pre-commit` hook block installed by git-hook-installer
     Disable,
+    /// Disable the managed `pre-commit` hook block across many git repos under a directory
+    ///
+    /// This is useful when you have a parent folder containing many repositories.
+    /// By default, the scan root is the current directory.
+    DisableRecursive {
+        /// How deep to scan for git repositories (default: 1)
+        ///
+        /// Depth 1 scans the scan-root and its immediate children.
+        #[arg(long, default_value_t = 1, value_name = "N")]
+        max_depth: usize,
+
+        /// Directory to scan for git repos (defaults to current directory)
+        #[arg(value_name = "DIR")]
+        dir: Option<PathBuf>,
+    },
     /// Uninstall the managed `pre-commit` hook block installed by git-hook-installer
     Uninstall,
     /// Uninstall the managed `pre-commit` hook block across many git repos under a directory
@@ -86,6 +101,25 @@ pub enum Command {
         /// Print more details (e.g. hook contents summary)
         #[arg(long)]
         verbose: bool,
+    },
+    /// Inspect and report hook state across many git repos under a directory
+    ///
+    /// This is useful when you have a parent folder containing many repositories.
+    /// By default, the scan root is the current directory.
+    StatusRecursive {
+        /// Print more details (e.g. hook contents summary)
+        #[arg(long)]
+        verbose: bool,
+
+        /// How deep to scan for git repositories (default: 1)
+        ///
+        /// Depth 1 scans the scan-root and its immediate children.
+        #[arg(long, default_value_t = 1, value_name = "N")]
+        max_depth: usize,
+
+        /// Directory to scan for git repos (defaults to current directory)
+        #[arg(value_name = "DIR")]
+        dir: Option<PathBuf>,
     },
 }
 

@@ -60,6 +60,38 @@ git-hook-installer uninstall-recursive --max-depth 3 ~/src
 git-hook-installer --yes uninstall-recursive ~/src
 ```
 
+Recursively disable the managed `pre-commit` hook block across many repos under a directory:
+
+```bash
+# scans current directory
+git-hook-installer disable-recursive
+
+# or pass an explicit directory to scan
+git-hook-installer disable-recursive ~/src
+
+# increase scan depth (default is 1)
+git-hook-installer disable-recursive --max-depth 3 ~/src
+
+# skip the confirmation prompt
+git-hook-installer --yes disable-recursive ~/src
+```
+
+Recursively inspect the current hook state across many repos under a directory:
+
+```bash
+# scans current directory
+git-hook-installer status-recursive
+
+# or pass an explicit directory to scan
+git-hook-installer status-recursive ~/src
+
+# increase scan depth (default is 1)
+git-hook-installer status-recursive --max-depth 3 ~/src
+
+# show more details per repo
+git-hook-installer status-recursive --verbose --max-depth 3 ~/src
+```
+
 Inspect the current hook state:
 
 ```bash

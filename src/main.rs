@@ -23,8 +23,8 @@ use crate::cli::{Cli, Command, HookKind};
 use crate::git_repo::{find_git_repo, find_git_repos_under_dir};
 use crate::hooks::InstallOptions;
 use crate::installer::{
-    disable_managed_pre_commit, install_resolved_hook, resolve_hook_kind,
-    uninstall_managed_pre_commit, uninstall_managed_pre_commit_best_effort,
+    disable_managed_pre_commit, disable_managed_pre_commit_best_effort, install_resolved_hook,
+    resolve_hook_kind, uninstall_managed_pre_commit, uninstall_managed_pre_commit_best_effort,
 };
 use crate::status::print_status;
 
@@ -154,6 +154,71 @@ fn main() -> Result<()> {
                 failures.len()
             )
         }
+        Command::DisableRecursive { max_depth, dir } => {
+            let scan_root = dir.unwrap_or(cwd);
+            println!(
+                "Scanning {} for git repositories (max depth: {})",
+                scan_root.display(),
+                max_depth
+            );
+            let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
+            if repos.is_empty() {
+                println!("No git repositories found under {}", scan_root.display());
+                return Ok(());
+            }
+
+            if cli.non_interactive && !cli.yes {
+                anyhow::bail!(
+                    "Refusing to run recursive disable without confirmation (found {} repos). Re-run with --yes.",
+                    repos.len()
+                );
+            }
+
+            if !cli.yes && !cli.non_interactive {
+                println!(
+                    "Found {} git repositories under {}:",
+                    repos.len(),
+                    scan_root.display()
+                );
+                let preview_limit = 25usize;
+                for (idx, (repo_root, _)) in repos.iter().take(preview_limit).enumerate() {
+                    println!("  {:>2}. {}", idx + 1, repo_root.display());
+                }
+                if repos.len() > preview_limit {
+                    println!("  ... and {} more", repos.len() - preview_limit);
+                }
+
+                let should_continue = Confirm::new()
+                    .with_prompt(format!("Run disable in {} repositories?", repos.len()))
+                    .default(false)
+                    .interact()
+                    .context("Failed to read confirmation from stdin")?;
+
+                if !should_continue {
+                    println!("Aborted.");
+                    return Ok(());
+                }
+            }
+
+            let mut failures: Vec<(PathBuf, anyhow::Error)> = Vec::new();
+            for (repo_root, git_dir) in repos {
+                println!("\n==> {}", repo_root.display());
+                let result = disable_managed_pre_commit_best_effort(&git_dir);
+                if let Err(err) = result {
+                    eprintln!("Failed in {}: {err:#}", repo_root.display());
+                    failures.push((repo_root, err));
+                }
+            }
+
+            if failures.is_empty() {
+                return Ok(());
+            }
+
+            anyhow::bail!(
+                "Recursive disable completed with {} failure(s).",
+                failures.len()
+            )
+        }
         Command::UninstallRecursive { max_depth, dir } => {
             let scan_root = dir.unwrap_or(cwd);
             println!(
@@ -216,6 +281,42 @@ fn main() -> Result<()> {
 
             anyhow::bail!(
                 "Recursive uninstall completed with {} failure(s).",
+                failures.len()
+            )
+        }
+        Command::StatusRecursive {
+            verbose,
+            max_depth,
+            dir,
+        } => {
+            let scan_root = dir.unwrap_or(cwd);
+            println!(
+                "Scanning {} for git repositories (max depth: {})",
+                scan_root.display(),
+                max_depth
+            );
+            let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
+            if repos.is_empty() {
+                println!("No git repositories found under {}", scan_root.display());
+                return Ok(());
+            }
+
+            let mut failures: Vec<(PathBuf, anyhow::Error)> = Vec::new();
+            for (repo_root, git_dir) in repos {
+                println!("\n==> {}", repo_root.display());
+                let result = print_status(&repo_root, &git_dir, verbose);
+                if let Err(err) = result {
+                    eprintln!("Failed in {}: {err:#}", repo_root.display());
+                    failures.push((repo_root, err));
+                }
+            }
+
+            if failures.is_empty() {
+                return Ok(());
+            }
+
+            anyhow::bail!(
+                "Recursive status completed with {} failure(s).",
                 failures.len()
             )
         }
