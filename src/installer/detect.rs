@@ -104,6 +104,159 @@ pub fn detect_js_ts_repo_proof(repo_root: &Path) -> Option<&'static str> {
     None
 }
 
+pub fn detect_python_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    let root_signals = [
+        "pyproject.toml",
+        "requirements.txt",
+        "requirements-dev.txt",
+        "setup.py",
+        "setup.cfg",
+        "Pipfile",
+        "poetry.lock",
+        "uv.lock",
+    ];
+    if root_signals
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
+        return Some("found Python tooling file (pyproject/requirements/setup/Pipfile/lockfile)");
+    }
+
+    if has_any_file_named_bounded(repo_root, &root_signals, 3, 10_000) {
+        return Some("found nested Python tooling file (shallow scan)");
+    }
+
+    if has_any_file_with_ext_bounded(repo_root, &["py"], 2, 10_000) {
+        return Some("found Python source files (shallow scan)");
+    }
+
+    None
+}
+
+pub fn detect_java_kotlin_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    let root_signals = [
+        "gradlew",
+        "build.gradle",
+        "build.gradle.kts",
+        "settings.gradle",
+        "settings.gradle.kts",
+        "pom.xml",
+    ];
+    if root_signals
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
+        return Some("found Gradle/Maven project file");
+    }
+
+    if has_any_file_named_bounded(repo_root, &root_signals, 3, 10_000) {
+        return Some("found nested Gradle/Maven project file (shallow scan)");
+    }
+
+    if has_any_file_with_ext_bounded(repo_root, &["java", "kt", "kts"], 2, 10_000) {
+        return Some("found Java/Kotlin source files (shallow scan)");
+    }
+
+    None
+}
+
+pub fn detect_go_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    let root_signals = ["go.mod", "go.work", "go.sum"];
+    if root_signals
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
+        return Some("found Go module/work file (go.mod/go.work)");
+    }
+
+    if has_any_file_named_bounded(repo_root, &root_signals, 3, 10_000) {
+        return Some("found nested Go module/work file (shallow scan)");
+    }
+
+    if has_any_file_with_ext_bounded(repo_root, &["go"], 2, 10_000) {
+        return Some("found Go source files (shallow scan)");
+    }
+
+    None
+}
+
+pub fn detect_ruby_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    let root_signals = ["Gemfile", "Gemfile.lock", ".ruby-version", "Rakefile"];
+    if root_signals
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
+        return Some("found Ruby tooling file (Gemfile/.ruby-version)");
+    }
+
+    if has_any_file_named_bounded(repo_root, &root_signals, 3, 10_000) {
+        return Some("found nested Ruby tooling file (shallow scan)");
+    }
+
+    if has_any_file_with_ext_bounded(repo_root, &["rb"], 2, 10_000) {
+        return Some("found Ruby source files (shallow scan)");
+    }
+
+    None
+}
+
+pub fn detect_shell_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    let root_signals = [".shellcheckrc", ".shfmt"];
+    if root_signals
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
+        return Some("found shell tooling file (.shellcheckrc/.shfmt)");
+    }
+
+    if has_any_file_with_ext_bounded(repo_root, &["sh", "bash", "zsh"], 2, 10_000) {
+        return Some("found shell scripts (shallow scan)");
+    }
+
+    None
+}
+
+pub fn detect_terraform_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    let root_signals = [".terraform.lock.hcl"];
+    if root_signals
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
+        return Some("found Terraform lockfile (.terraform.lock.hcl)");
+    }
+
+    if has_any_file_named_bounded(repo_root, &root_signals, 3, 10_000) {
+        return Some("found nested Terraform lockfile (shallow scan)");
+    }
+
+    if has_any_file_with_ext_bounded(repo_root, &["tf", "tfvars"], 2, 10_000) {
+        return Some("found Terraform files (shallow scan)");
+    }
+
+    None
+}
+
+pub fn detect_c_cpp_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    let root_signals = [".clang-format"];
+    if root_signals
+        .iter()
+        .any(|name| repo_root.join(name).is_file())
+    {
+        return Some("found clang-format config (.clang-format)");
+    }
+
+    if has_any_file_with_ext_bounded(
+        repo_root,
+        &["c", "cc", "cpp", "cxx", "h", "hh", "hpp", "hxx"],
+        2,
+        10_000,
+    ) {
+        return Some("found C/C++ files (shallow scan)");
+    }
+
+    None
+}
+
 pub fn choose_python_tool(repo_root: &Path) -> ToolChoice<PythonTool> {
     // Prefer Ruff if it appears configured; otherwise fall back to Black if configured.
     // Default to Ruff because it can both format and lint-fix.
@@ -435,6 +588,48 @@ mod tests {
 
         // act
         let maybe_reason = detect_js_ts_repo_proof(temp.path());
+
+        // assert
+        assert!(maybe_reason.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn detect_python_repo_proof_some_when_pyproject_exists() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        std::fs::write(temp.path().join("pyproject.toml"), "[build-system]\n")?;
+
+        // act
+        let maybe_reason = detect_python_repo_proof(temp.path());
+
+        // assert
+        assert!(maybe_reason.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn detect_go_repo_proof_some_when_go_mod_exists() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        std::fs::write(temp.path().join("go.mod"), "module example.com/x\n")?;
+
+        // act
+        let maybe_reason = detect_go_repo_proof(temp.path());
+
+        // assert
+        assert!(maybe_reason.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn detect_ruby_repo_proof_some_when_gemfile_exists() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        std::fs::write(temp.path().join("Gemfile"), "source 'https://rubygems.org'\n")?;
+
+        // act
+        let maybe_reason = detect_ruby_repo_proof(temp.path());
 
         // assert
         assert!(maybe_reason.is_some());

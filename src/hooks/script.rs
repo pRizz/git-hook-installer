@@ -103,14 +103,277 @@ ghi_run_js_ts_prettier_eslint() {
         ("", "(disabled)", "", "", "", "")
     };
 
-    let python_tool = match settings.python_tool {
-        PythonTool::Ruff => "ruff",
-        PythonTool::Black => "black",
+    let (python_tool_value, python_tool_note, python_functions, python_filter_lines, python_run_section) =
+        if let Some(python_tool) = settings.maybe_python_tool {
+            let python_tool_value = match python_tool {
+                PythonTool::Ruff => "ruff",
+                PythonTool::Black => "black",
+            };
+            (
+                python_tool_value,
+                python_tool_value,
+                r#"ghi_run_python_ruff() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ! ghi_has_cmd ruff; then
+    ghi_echo "ruff not found; skipping Python"
+    return 0
+  fi
+
+  ghi_echo "Running ruff format (fix)..."
+  ruff format $files
+
+  ghi_echo "Running ruff check --fix..."
+  ruff check --fix $files
+}
+
+ghi_run_python_black() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ! ghi_has_cmd black; then
+    ghi_echo "black not found; skipping Python"
+    return 0
+  fi
+
+  ghi_echo "Running black (fix)..."
+  black $files
+}
+"#,
+                r#"  files_py="$(ghi_filter_by_ext "$staged" "*.py")"
+"#,
+                r#"  # Python
+  if [ "$GHI_PYTHON_TOOL" = "ruff" ]; then
+    ghi_run_python_ruff "$files_py"
+  else
+    ghi_run_python_black "$files_py"
+  fi
+  ghi_git_add_list "$files_py"
+"#,
+            )
+        } else {
+            ("", "(disabled)", "", "", "")
+        };
+
+    let (java_kotlin_tool_value, java_kotlin_tool_note, java_kotlin_functions, java_kotlin_filter_lines, java_kotlin_run_section) =
+        if let Some(java_kotlin_tool) = settings.maybe_java_kotlin_tool {
+            let java_kotlin_tool_value = match java_kotlin_tool {
+                JavaKotlinTool::Spotless => "spotless",
+                JavaKotlinTool::Ktlint => "ktlint",
+            };
+            (
+                java_kotlin_tool_value,
+                java_kotlin_tool_value,
+                r#"ghi_run_java_kotlin_spotless() {
+  all_staged_files="$1"
+  if [ -z "$all_staged_files" ]; then
+    return 0
+  fi
+
+  if [ -x "./gradlew" ]; then
+    ghi_echo "Running ./gradlew spotlessApply (fix)..."
+    ./gradlew -q spotlessApply
+    ghi_git_add_list "$all_staged_files"
+    return 0
+  fi
+
+  if ghi_has_cmd gradle; then
+    ghi_echo "Running gradle spotlessApply (fix)..."
+    gradle -q spotlessApply
+    ghi_git_add_list "$all_staged_files"
+    return 0
+  fi
+
+  ghi_echo "spotless requested but gradle/gradlew not found; skipping"
+  return 0
+}
+
+ghi_run_java_kotlin_ktlint() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ! ghi_has_cmd ktlint; then
+    ghi_echo "ktlint not found; skipping Kotlin"
+    return 0
+  fi
+
+  ghi_echo "Running ktlint -F (fix)..."
+  ktlint -F $files
+}
+"#,
+                r#"  files_kt="$(ghi_filter_by_ext "$staged" "*.kt" "*.kts")"
+"#,
+                r#"  # Java/Kotlin
+  if [ "$GHI_JAVA_KOTLIN_TOOL" = "spotless" ]; then
+    ghi_run_java_kotlin_spotless "$staged"
+  else
+    ghi_run_java_kotlin_ktlint "$files_kt"
+    ghi_git_add_list "$files_kt"
+  fi
+"#,
+            )
+        } else {
+            ("", "(disabled)", "", "", "")
+        };
+
+    let (go_functions, go_filter_lines, go_run_section) = if settings.go_enabled {
+        (
+            r#"ghi_run_go() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ! ghi_has_cmd gofmt; then
+    ghi_echo "gofmt not found; skipping Go"
+    return 0
+  fi
+
+  ghi_echo "Running gofmt (fix)..."
+  gofmt -w $files
+}
+"#,
+            r#"  files_go="$(ghi_filter_by_ext "$staged" "*.go")"
+"#,
+            r#"  # Go
+  ghi_run_go "$files_go"
+  ghi_git_add_list "$files_go"
+"#,
+        )
+    } else {
+        ("", "", "")
     };
 
-    let java_kotlin_tool = match settings.java_kotlin_tool {
-        JavaKotlinTool::Spotless => "spotless",
-        JavaKotlinTool::Ktlint => "ktlint",
+    let (shell_functions, shell_filter_lines, shell_run_section) = if settings.shell_enabled {
+        (
+            r#"ghi_run_shell() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ghi_has_cmd shfmt; then
+    ghi_echo "Running shfmt (fix)..."
+    shfmt -w $files
+  else
+    ghi_echo "shfmt not found; skipping shell formatting"
+  fi
+
+  if ghi_has_cmd shellcheck; then
+    ghi_echo "Running shellcheck (lint)..."
+    shellcheck $files
+  else
+    ghi_echo "shellcheck not found; skipping shellcheck"
+  fi
+}
+"#,
+            r#"  files_sh="$(ghi_filter_by_ext "$staged" "*.sh" "*.bash" "*.zsh")"
+"#,
+            r#"  # Shell
+  ghi_run_shell "$files_sh"
+  ghi_git_add_list "$files_sh"
+"#,
+        )
+    } else {
+        ("", "", "")
+    };
+
+    let (terraform_functions, terraform_filter_lines, terraform_run_section) = if settings.terraform_enabled {
+        (
+            r#"ghi_run_terraform() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ! ghi_has_cmd terraform; then
+    ghi_echo "terraform not found; skipping Terraform"
+    return 0
+  fi
+
+  dirs="$(printf '%s\n' $files | while read -r f; do dirname "$f"; done | sort -u)"
+  if [ -z "$dirs" ]; then
+    return 0
+  fi
+
+  for d in $dirs; do
+    ghi_echo "Running terraform fmt in $d..."
+    (cd "$d" && terraform fmt)
+  done
+}
+"#,
+            r#"  files_tf="$(ghi_filter_by_ext "$staged" "*.tf" "*.tfvars")"
+"#,
+            r#"  # Terraform
+  ghi_run_terraform "$files_tf"
+  ghi_git_add_list "$files_tf"
+"#,
+        )
+    } else {
+        ("", "", "")
+    };
+
+    let (c_cpp_functions, c_cpp_filter_lines, c_cpp_run_section) = if settings.c_cpp_enabled {
+        (
+            r#"ghi_run_clang_format() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ! ghi_has_cmd clang-format; then
+    ghi_echo "clang-format not found; skipping C/C++"
+    return 0
+  fi
+
+  ghi_echo "Running clang-format (fix)..."
+  clang-format -i $files
+}
+"#,
+            r#"  files_c_cpp="$(ghi_filter_by_ext "$staged" "*.c" "*.cc" "*.cpp" "*.cxx" "*.h" "*.hh" "*.hpp" "*.hxx")"
+"#,
+            r#"  # C/C++
+  ghi_run_clang_format "$files_c_cpp"
+  ghi_git_add_list "$files_c_cpp"
+"#,
+        )
+    } else {
+        ("", "", "")
+    };
+
+    let (ruby_functions, ruby_filter_lines, ruby_run_section) = if settings.ruby_enabled {
+        (
+            r#"ghi_run_rubocop() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  if ! ghi_has_cmd rubocop; then
+    ghi_echo "rubocop not found; skipping Ruby"
+    return 0
+  fi
+
+  ghi_echo "Running rubocop -A (fix)..."
+  rubocop -A $files
+}
+"#,
+            r#"  files_rb="$(ghi_filter_by_ext "$staged" "*.rb")"
+"#,
+            r#"  # Ruby
+  ghi_run_rubocop "$files_rb"
+  ghi_git_add_list "$files_rb"
+"#,
+        )
+    } else {
+        ("", "", "")
     };
 
     let cargo_manifest_dir_note = settings
@@ -126,6 +389,11 @@ ghi_run_js_ts_prettier_eslint() {
         .unwrap_or_else(|| "(none)".to_string());
 
     let enabled = if settings.enabled { "1" } else { "0" };
+    let go_enabled = if settings.go_enabled { "1" } else { "0" };
+    let shell_enabled = if settings.shell_enabled { "1" } else { "0" };
+    let terraform_enabled = if settings.terraform_enabled { "1" } else { "0" };
+    let c_cpp_enabled = if settings.c_cpp_enabled { "1" } else { "0" };
+    let ruby_enabled = if settings.ruby_enabled { "1" } else { "0" };
 
     // NOTE: This must remain POSIX-sh compatible.
     format!(
@@ -133,8 +401,13 @@ ghi_run_js_ts_prettier_eslint() {
 # git-hook-installer settings (stored locally in this hook file):
 #   enabled={enabled}
 #   js_ts_tool={js_ts_tool_note}
-#   python_tool={python_tool}
-#   java_kotlin_tool={java_kotlin_tool}
+#   python_tool={python_tool_note}
+#   java_kotlin_tool={java_kotlin_tool_note}
+#   go_enabled={go_enabled}
+#   shell_enabled={shell_enabled}
+#   terraform_enabled={terraform_enabled}
+#   c_cpp_enabled={c_cpp_enabled}
+#   ruby_enabled={ruby_enabled}
 #   cargo_manifest_dir={cargo_manifest_dir_note}
 #   default_mode=fix
 #   unstaged_changes=stash(--keep-index --include-untracked) + restore
@@ -142,8 +415,8 @@ ghi_run_js_ts_prettier_eslint() {
 
 GHI_ENABLED={enabled}
 GHI_JS_TS_TOOL="{js_ts_tool_value}"
-GHI_PYTHON_TOOL="{python_tool}"
-GHI_JAVA_KOTLIN_TOOL="{java_kotlin_tool}"
+GHI_PYTHON_TOOL="{python_tool_value}"
+GHI_JAVA_KOTLIN_TOOL="{java_kotlin_tool_value}"
 GHI_CARGO_MANIFEST_DIR="{cargo_manifest_dir_for_shell}"
 
 ghi_echo() {{
@@ -255,166 +528,13 @@ ghi_cleanup() {{
 }}
 
 {js_ts_functions}
-
-ghi_run_python_ruff() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ! ghi_has_cmd ruff; then
-    ghi_echo "ruff not found; skipping Python"
-    return 0
-  fi
-
-  ghi_echo "Running ruff format (fix)..."
-  ruff format $files
-
-  ghi_echo "Running ruff check --fix..."
-  ruff check --fix $files
-}}
-
-ghi_run_python_black() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ! ghi_has_cmd black; then
-    ghi_echo "black not found; skipping Python"
-    return 0
-  fi
-
-  ghi_echo "Running black (fix)..."
-  black $files
-}}
-
-ghi_run_go() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ! ghi_has_cmd gofmt; then
-    ghi_echo "gofmt not found; skipping Go"
-    return 0
-  fi
-
-  ghi_echo "Running gofmt (fix)..."
-  gofmt -w $files
-}}
-
-ghi_run_shell() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ghi_has_cmd shfmt; then
-    ghi_echo "Running shfmt (fix)..."
-    shfmt -w $files
-  else
-    ghi_echo "shfmt not found; skipping shell formatting"
-  fi
-
-  if ghi_has_cmd shellcheck; then
-    ghi_echo "Running shellcheck (lint)..."
-    shellcheck $files
-  else
-    ghi_echo "shellcheck not found; skipping shellcheck"
-  fi
-}}
-
-ghi_run_terraform() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ! ghi_has_cmd terraform; then
-    ghi_echo "terraform not found; skipping Terraform"
-    return 0
-  fi
-
-  dirs="$(printf '%s\n' $files | while read -r f; do dirname "$f"; done | sort -u)"
-  if [ -z "$dirs" ]; then
-    return 0
-  fi
-
-  for d in $dirs; do
-    ghi_echo "Running terraform fmt in $d..."
-    (cd "$d" && terraform fmt)
-  done
-}}
-
-ghi_run_clang_format() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ! ghi_has_cmd clang-format; then
-    ghi_echo "clang-format not found; skipping C/C++"
-    return 0
-  fi
-
-  ghi_echo "Running clang-format (fix)..."
-  clang-format -i $files
-}}
-
-ghi_run_java_kotlin_spotless() {{
-  all_staged_files="$1"
-  if [ -z "$all_staged_files" ]; then
-    return 0
-  fi
-
-  if [ -x "./gradlew" ]; then
-    ghi_echo "Running ./gradlew spotlessApply (fix)..."
-    ./gradlew -q spotlessApply
-    ghi_git_add_list "$all_staged_files"
-    return 0
-  fi
-
-  if ghi_has_cmd gradle; then
-    ghi_echo "Running gradle spotlessApply (fix)..."
-    gradle -q spotlessApply
-    ghi_git_add_list "$all_staged_files"
-    return 0
-  fi
-
-  ghi_echo "spotless requested but gradle/gradlew not found; skipping"
-  return 0
-}}
-
-ghi_run_java_kotlin_ktlint() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ! ghi_has_cmd ktlint; then
-    ghi_echo "ktlint not found; skipping Kotlin"
-    return 0
-  fi
-
-  ghi_echo "Running ktlint -F (fix)..."
-  ktlint -F $files
-}}
-
-ghi_run_rubocop() {{
-  files="$1"
-  if [ -z "$files" ]; then
-    return 0
-  fi
-
-  if ! ghi_has_cmd rubocop; then
-    ghi_echo "rubocop not found; skipping Ruby"
-    return 0
-  fi
-
-  ghi_echo "Running rubocop -A (fix)..."
-  rubocop -A $files
-}}
+{python_functions}
+{go_functions}
+{shell_functions}
+{terraform_functions}
+{c_cpp_functions}
+{java_kotlin_functions}
+{ruby_functions}
 
 ghi_run_cargo_fmt() {{
   if [ "$GHI_CARGO_MANIFEST_DIR" = "(none)" ]; then
@@ -461,53 +581,25 @@ ghi_main() {{
 
   # Filter file lists.
   files_md_yaml="$(ghi_filter_by_ext "$staged" "*.md" "*.markdown" "*.yml" "*.yaml")"
-  files_py="$(ghi_filter_by_ext "$staged" "*.py")"
-  files_go="$(ghi_filter_by_ext "$staged" "*.go")"
-  files_sh="$(ghi_filter_by_ext "$staged" "*.sh" "*.bash" "*.zsh")"
-  files_tf="$(ghi_filter_by_ext "$staged" "*.tf" "*.tfvars")"
-  files_c_cpp="$(ghi_filter_by_ext "$staged" "*.c" "*.cc" "*.cpp" "*.cxx" "*.h" "*.hh" "*.hpp" "*.hxx")"
-  files_kt="$(ghi_filter_by_ext "$staged" "*.kt" "*.kts")"
-  files_rb="$(ghi_filter_by_ext "$staged" "*.rb")"
 {js_ts_filter_lines}
+{python_filter_lines}
+{go_filter_lines}
+{shell_filter_lines}
+{terraform_filter_lines}
+{c_cpp_filter_lines}
+{java_kotlin_filter_lines}
+{ruby_filter_lines}
 
 {js_ts_run_section}
 {md_yaml_section}
 
-  # Python
-  if [ "$GHI_PYTHON_TOOL" = "ruff" ]; then
-    ghi_run_python_ruff "$files_py"
-  else
-    ghi_run_python_black "$files_py"
-  fi
-  ghi_git_add_list "$files_py"
-
-  # Go
-  ghi_run_go "$files_go"
-  ghi_git_add_list "$files_go"
-
-  # Shell
-  ghi_run_shell "$files_sh"
-  ghi_git_add_list "$files_sh"
-
-  # Terraform
-  ghi_run_terraform "$files_tf"
-  ghi_git_add_list "$files_tf"
-
-  # C/C++
-  ghi_run_clang_format "$files_c_cpp"
-  ghi_git_add_list "$files_c_cpp"
-
-  # Java/Kotlin
-  if [ "$GHI_JAVA_KOTLIN_TOOL" = "spotless" ]; then
-    ghi_run_java_kotlin_spotless "$staged"
-  else
-    ghi_run_java_kotlin_ktlint "$files_kt"
-    ghi_git_add_list "$files_kt"
-  fi
-
-  # Ruby
-  ghi_run_rubocop "$files_rb"
-  ghi_git_add_list "$files_rb"
+{python_run_section}
+{go_run_section}
+{shell_run_section}
+{terraform_run_section}
+{c_cpp_run_section}
+{java_kotlin_run_section}
+{ruby_run_section}
 
   # Rust
   # Note: cargo fmt formats at the workspace level and may touch files beyond staging.

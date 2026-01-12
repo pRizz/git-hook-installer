@@ -110,8 +110,13 @@ mod tests {
         let settings = ManagedPreCommitSettings {
             enabled: true,
             maybe_js_ts_tool: Some(JsTsTool::Biome),
-            python_tool: PythonTool::Ruff,
-            java_kotlin_tool: JavaKotlinTool::Spotless,
+            maybe_python_tool: Some(PythonTool::Ruff),
+            maybe_java_kotlin_tool: Some(JavaKotlinTool::Spotless),
+            go_enabled: true,
+            shell_enabled: true,
+            terraform_enabled: true,
+            c_cpp_enabled: true,
+            ruby_enabled: true,
             maybe_cargo_manifest_dir: None,
         };
         let repo_root = temp.path();
