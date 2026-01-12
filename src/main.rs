@@ -50,9 +50,8 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::Status {
-            manifest_dir,
             verbose,
-        } => print_status(&cwd, &repo_root, &git_dir, manifest_dir.as_deref(), verbose),
+        } => print_status(&repo_root, &git_dir, verbose),
         Command::Install { hook, manifest_dir } => {
             let maybe_resolved_hook = resolve_hook_kind(
                 hook,

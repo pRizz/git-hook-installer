@@ -45,10 +45,6 @@ pub enum Command {
     List,
     /// Inspect and report current hook state for this repository
     Status {
-        /// Directory containing the Cargo.toml to compare against (optional)
-        #[arg(long, value_name = "DIR")]
-        manifest_dir: Option<PathBuf>,
-
         /// Print more details (e.g. hook contents summary)
         #[arg(long)]
         verbose: bool,
