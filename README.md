@@ -75,7 +75,7 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 - **what counts as “proof”** (high-level):
   - **JS/TS**: `package.json` / lockfiles / `tsconfig.json` / `jsconfig.json` / Biome / ESLint / Prettier config, or a shallow scan that finds JS/TS source files.
     - Note: Prettier-based formatting for **Markdown/YAML** is tied to JS/TS being enabled (since it uses the same toolchain).
-    - If the repo is detected as **TypeScript**, the hook also runs a **`tsc --noEmit` typecheck** when staged changes include `*.ts/*.tsx` or `tsconfig.json` (uses `tsc` on PATH or `npx --no-install tsc`).
+    - If the repo is detected as **TypeScript**, the hook also runs a **`tsc --noEmit` typecheck** when staged changes include `*.ts/*.tsx` or `tsconfig.json` (uses `tsc` on PATH or `npx --yes tsc`).
   - **Python**: `pyproject.toml`, requirements/setup files, common lockfiles, or a shallow scan that finds `.py` files.
   - **Java/Kotlin**: Gradle/Maven files, or a shallow scan that finds `.java/.kt/.kts` files.
   - **Go**: `go.mod/go.work/go.sum`, or a shallow scan that finds `.go` files.

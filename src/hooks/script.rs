@@ -40,7 +40,7 @@ pub fn managed_pre_commit_block(settings: &ManagedPreCommitSettings, repo_root: 
 
   if ghi_has_cmd npx; then
     ghi_echo "Running biome via npx (fix + lint)..."
-    npx --no-install biome check --write $files
+    npx --yes biome check --write $files
     return 0
   fi
 
@@ -58,7 +58,7 @@ ghi_run_js_ts_prettier_eslint() {
       prettier --write $files_js_ts_json
     elif ghi_has_cmd npx; then
       ghi_echo "Running prettier via npx (fix)..."
-      npx --no-install prettier --write $files_js_ts_json
+      npx --yes prettier --write $files_js_ts_json
     else
       ghi_echo "prettier not found; skipping prettier"
     fi
@@ -70,7 +70,7 @@ ghi_run_js_ts_prettier_eslint() {
       eslint --fix $files_js_ts
     elif ghi_has_cmd npx; then
       ghi_echo "Running eslint via npx (fix)..."
-      npx --no-install eslint --fix $files_js_ts
+      npx --yes eslint --fix $files_js_ts
     else
       ghi_echo "eslint not found; skipping eslint"
     fi
@@ -92,7 +92,7 @@ ghi_run_ts_typecheck() {
   if ghi_has_cmd tsc; then
     tsc_cmd="tsc"
   elif ghi_has_cmd npx; then
-    tsc_cmd="npx --no-install tsc"
+    tsc_cmd="npx --yes tsc"
   else
     ghi_echo "tsc not found; skipping TypeScript typecheck"
     return 0
@@ -131,7 +131,7 @@ ghi_run_ts_typecheck() {
       ghi_git_add_list "$files_md_yaml"
     elif ghi_has_cmd npx; then
       ghi_echo "Running prettier via npx on Markdown/YAML (fix)..."
-      npx --no-install prettier --write $files_md_yaml
+      npx --yes prettier --write $files_md_yaml
       ghi_git_add_list "$files_md_yaml"
     else
       ghi_echo "prettier not found; skipping Markdown/YAML formatting"
