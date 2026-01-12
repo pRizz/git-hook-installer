@@ -8,7 +8,7 @@ pub fn ensure_shebang(contents: &str) -> String {
     if first_line.starts_with("#!") {
         return contents.to_string();
     }
-    format!("#!/bin/sh\n{contents}")
+    format!("#!/usr/bin/env bash\n{contents}")
 }
 
 pub fn upsert_managed_block(existing: &str, block: &str) -> String {
@@ -144,6 +144,19 @@ fn normalize_newline_join(lines: &[&str]) -> String {
 mod tests {
     use super::*;
     use anyhow::Result;
+
+    #[test]
+    fn ensure_shebang_prefers_env_bash_when_missing() -> Result<()> {
+        // arrange
+        let contents = "echo hi\n";
+
+        // act
+        let updated = ensure_shebang(contents);
+
+        // assert
+        assert!(updated.starts_with("#!/usr/bin/env bash\n"));
+        Ok(())
+    }
 
     #[test]
     fn upsert_managed_block_inserts_after_shebang_when_missing() -> Result<()> {
