@@ -38,7 +38,11 @@ pub fn upsert_managed_block_in_file(
 
     if let Some(existing) = existing.as_deref() {
         if existing == updated {
-            // No changes to write; do not create a snapshot.
+            // Existing hook is already up-to-date; do not create a snapshot.
+            println!(
+                "No changes detected for {}; not creating a snapshot.",
+                path.display()
+            );
             return Ok(());
         }
         create_hook_snapshot_and_prune(path, DEFAULT_MAX_SNAPSHOTS)?;
