@@ -1,189 +1,128 @@
 //! Git hook installation and script generation.
 //!
-//! This module handles writing hook scripts to the git hooks directory,
-//! including backup of existing hooks, permission management, and generation
-//! of hook script content (e.g., cargo-fmt pre-commit hooks).
+//! Public API lives in this file (`hooks.rs`), with implementation split into
+//! `hooks/` submodules for maintainability.
 
-use std::ffi::OsStr;
-use std::fs;
-use std::io::Write;
+mod fs;
+mod managed_block;
+mod script;
+mod snapshots;
+mod types;
+
+use std::fs as stdfs;
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
-use dialoguer::Confirm;
 
-#[derive(Clone, Copy)]
-pub struct InstallOptions {
-    pub yes: bool,
-    pub non_interactive: bool,
-    pub force: bool,
-}
+pub use fs::is_executable;
+pub use managed_block::MANAGED_BLOCK_BEGIN;
+pub use script::managed_pre_commit_block;
+pub use types::{InstallOptions, JavaKotlinTool, JsTsTool, ManagedPreCommitSettings, PythonTool};
 
-pub fn install_hook_script(
+pub const PRE_COMMIT_HOOK_NAME: &str = "pre-commit";
+
+pub fn upsert_managed_pre_commit_hook(
     git_dir: &Path,
-    hook_name: &str,
-    hook_contents: &str,
+    block: &str,
     options: InstallOptions,
 ) -> Result<()> {
     let hooks_dir = git_dir.join("hooks");
-    fs::create_dir_all(&hooks_dir).with_context(|| {
+    stdfs::create_dir_all(&hooks_dir).with_context(|| {
         format!(
             "Failed to create hooks directory at {}",
             hooks_dir.display()
         )
     })?;
 
-    let hook_path = hooks_dir.join(hook_name);
-    write_hook_file(&hook_path, hook_contents.as_bytes(), options)?;
-
-    println!("Installed `{}` hook at {}", hook_name, hook_path.display());
+    let hook_path = hooks_dir.join(PRE_COMMIT_HOOK_NAME);
+    fs::upsert_managed_block_in_file(&hook_path, block, options)?;
+    fs::set_executable(&hook_path)
+        .with_context(|| format!("Failed to mark {} as executable", hook_path.display()))?;
+    println!(
+        "Installed `{}` hook at {}",
+        PRE_COMMIT_HOOK_NAME,
+        hook_path.display()
+    );
     Ok(())
 }
 
-pub fn cargo_fmt_pre_commit_script(cargo_dir: &Path) -> String {
-    format!(
-        r#"#!/bin/sh
-set -e
-
-cd "{}"
-
-if ! command -v cargo >/dev/null 2>&1; then
-  echo "cargo not found; skipping cargo fmt"
-  exit 0
-fi
-
-echo "Running cargo fmt..."
-cargo fmt
-
-"#,
-        shell_escape_path(cargo_dir)
-    )
-}
-
-fn shell_escape_path(path: &Path) -> String {
-    // Minimal escaping for POSIX sh: wrap in double quotes and escape embedded quotes/backslashes,
-    // dollar signs, and backticks to prevent command injection.
-    let raw = path.to_string_lossy();
-    let mut escaped = String::with_capacity(raw.len() + 2);
-    for ch in raw.chars() {
-        match ch {
-            '\\' => escaped.push_str("\\\\"),
-            '"' => escaped.push_str("\\\""),
-            '$' => escaped.push_str("\\$"),
-            '`' => escaped.push_str("\\`"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
-}
-
-fn write_hook_file(path: &Path, contents: &[u8], options: InstallOptions) -> Result<()> {
-    if path.exists() {
-        handle_existing_hook(path, options)?;
+pub fn disable_managed_pre_commit_hook(git_dir: &Path) -> Result<()> {
+    let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
+    if !hook_path.exists() {
+        return Err(anyhow!("No pre-commit hook exists at {}", hook_path.display()));
     }
 
-    let mut file = fs::File::create(path)
-        .with_context(|| format!("Failed to create hook file at {}", path.display()))?;
-    file.write_all(contents)
-        .with_context(|| format!("Failed to write hook file at {}", path.display()))?;
-
-    set_executable(path)
-        .with_context(|| format!("Failed to mark {} as executable", path.display()))?;
+    let contents = stdfs::read_to_string(&hook_path)
+        .with_context(|| format!("Failed to read {}", hook_path.display()))?;
+    let updated = managed_block::disable_managed_block(&contents)?;
+    fs::write_hook_with_snapshot_if_changed(&hook_path, &contents, &updated)?;
+    println!("Disabled managed git-hook-installer block in {}", hook_path.display());
     Ok(())
 }
 
-fn handle_existing_hook(path: &Path, options: InstallOptions) -> Result<()> {
-    if options.force || options.yes {
-        return backup_existing_hook(path);
+pub fn uninstall_managed_pre_commit_hook(git_dir: &Path) -> Result<()> {
+    let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
+    if !hook_path.exists() {
+        return Err(anyhow!("No pre-commit hook exists at {}", hook_path.display()));
     }
 
-    if options.non_interactive {
-        return Err(anyhow!(
-            "Hook already exists at {} (use --force to overwrite)",
-            path.display()
-        ));
-    }
+    let contents = stdfs::read_to_string(&hook_path)
+        .with_context(|| format!("Failed to read {}", hook_path.display()))?;
+    let updated = managed_block::uninstall_managed_block(&contents)?;
 
-    println!("Hook already exists at {}.", path.display());
-    let should_overwrite = Confirm::new()
-        .with_prompt("Back up existing hook and overwrite?")
-        .default(false)
-        .interact()
-        .context("Failed to read confirmation from stdin")?;
-
-    if !should_overwrite {
-        return Err(anyhow!("Aborted (existing hook was not modified)."));
-    }
-
-    backup_existing_hook(path)
-}
-
-fn backup_existing_hook(path: &Path) -> Result<()> {
-    let maybe_file_name = path.file_name().and_then(OsStr::to_str);
-    let Some(file_name) = maybe_file_name else {
-        return Err(anyhow!("Invalid hook path: {}", path.display()));
-    };
-
-    let parent = path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid hook path (no parent): {}", path.display()))?;
-
-    let mut counter: u32 = 0;
-    loop {
-        let suffix = if counter == 0 {
-            ".bak".to_string()
-        } else {
-            format!(".bak.{}", counter)
-        };
-
-        let backup_path = parent.join(format!("{}{}", file_name, suffix));
-        if backup_path.exists() {
-            counter = counter.saturating_add(1);
-            if counter > 10_000 {
-                return Err(anyhow!(
-                    "Too many backup files exist for {}",
-                    path.display()
-                ));
-            }
-            continue;
-        }
-
-        fs::copy(path, &backup_path).with_context(|| {
-            format!(
-                "Failed to back up existing hook from {} to {}",
-                path.display(),
-                backup_path.display()
-            )
-        })?;
-        println!("Backed up existing hook to {}", backup_path.display());
+    if updated.trim().is_empty() {
+        snapshots::create_hook_snapshot_and_prune(
+            &hook_path,
+            snapshots::DEFAULT_MAX_SNAPSHOTS,
+        )?;
+        stdfs::remove_file(&hook_path)
+            .with_context(|| format!("Failed to remove {}", hook_path.display()))?;
+        println!("Removed {}", hook_path.display());
         return Ok(());
     }
-}
 
-#[cfg(unix)]
-fn set_executable(path: &Path) -> Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let metadata = fs::metadata(path)?;
-    let mut permissions = metadata.permissions();
-    permissions.set_mode(0o755);
-    fs::set_permissions(path, permissions)?;
+    fs::write_hook_with_snapshot_if_changed(&hook_path, &contents, &updated)?;
+    println!("Uninstalled managed git-hook-installer block in {}", hook_path.display());
     Ok(())
 }
 
-#[cfg(not(unix))]
-fn set_executable(_path: &Path) -> Result<()> {
-    Ok(())
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn upsert_managed_pre_commit_hook_writes_file() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        let git_dir = temp.path().join(".git");
+        std::fs::create_dir_all(git_dir.join("hooks"))?;
+
+        let settings = ManagedPreCommitSettings {
+            enabled: true,
+            js_ts_tool: JsTsTool::Biome,
+            python_tool: PythonTool::Ruff,
+            java_kotlin_tool: JavaKotlinTool::Spotless,
+            maybe_cargo_manifest_dir: None,
+        };
+        let repo_root = temp.path();
+        let block = managed_pre_commit_block(&settings, repo_root);
+
+        // act
+        upsert_managed_pre_commit_hook(
+            &git_dir,
+            &block,
+            InstallOptions {
+                yes: true,
+                non_interactive: true,
+                force: true,
+            },
+        )?;
+
+        // assert
+        let hook_path = git_dir.join("hooks").join(PRE_COMMIT_HOOK_NAME);
+        assert!(hook_path.is_file());
+        Ok(())
+    }
 }
 
-#[cfg(unix)]
-pub fn is_executable(path: &Path) -> Option<bool> {
-    use std::os::unix::fs::PermissionsExt;
-    let metadata = fs::metadata(path).ok()?;
-    let mode = metadata.permissions().mode();
-    Some((mode & 0o111) != 0)
-}
-
-#[cfg(not(unix))]
-pub fn is_executable(_path: &Path) -> Option<bool> {
-    None
-}

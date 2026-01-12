@@ -5,19 +5,15 @@
 //! and whether they match expected hook scripts.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::Result;
 
-use crate::cargo_repo::{resolve_cargo_manifest_dir, ResolveHookOptions};
-use crate::hooks::{cargo_fmt_pre_commit_script, is_executable};
-use crate::util::{normalize_newlines, relative_display};
+use crate::hooks::{is_executable, MANAGED_BLOCK_BEGIN};
 
 pub fn print_status(
-    cwd: &Path,
     repo_root: &Path,
     git_dir: &Path,
-    maybe_manifest_dir_from_cli: Option<&Path>,
     verbose: bool,
 ) -> Result<()> {
     let hooks_dir = git_dir.join("hooks");
@@ -32,49 +28,12 @@ pub fn print_status(
         return Ok(());
     }
 
-    let (maybe_manifest_dir, manifest_note) =
-        resolve_manifest_dir_for_status(cwd, repo_root, maybe_manifest_dir_from_cli)?;
-    if let Some(note) = manifest_note {
-        println!("{note}");
-    }
-
-    inspect_pre_commit(
-        &hooks_dir,
-        repo_root,
-        maybe_manifest_dir.as_deref(),
-        verbose,
-    )?;
+    inspect_pre_commit(&hooks_dir, verbose)?;
     Ok(())
-}
-
-fn resolve_manifest_dir_for_status(
-    cwd: &Path,
-    repo_root: &Path,
-    maybe_manifest_dir_from_cli: Option<&Path>,
-) -> Result<(Option<PathBuf>, Option<String>)> {
-    let options = ResolveHookOptions {
-        yes: true,
-        non_interactive: true,
-    };
-
-    let result = resolve_cargo_manifest_dir(maybe_manifest_dir_from_cli, cwd, repo_root, options);
-    let Ok(manifest_dir) = result else {
-        return Ok((None, None));
-    };
-
-    Ok((
-        Some(manifest_dir.clone()),
-        Some(format!(
-            "Cargo manifest dir (for comparison): {}",
-            manifest_dir.display()
-        )),
-    ))
 }
 
 fn inspect_pre_commit(
     hooks_dir: &Path,
-    repo_root: &Path,
-    maybe_manifest_dir: Option<&Path>,
     verbose: bool,
 ) -> Result<()> {
     let hook_path = hooks_dir.join("pre-commit");
@@ -97,6 +56,9 @@ fn inspect_pre_commit(
 
     println!("pre-commit readable: true");
 
+    let has_managed_block = contents.lines().any(|line| line.trim() == MANAGED_BLOCK_BEGIN);
+    println!("pre-commit has git-hook-installer managed block: {has_managed_block}");
+
     let looks_like_cargo_fmt = contents.lines().any(|line| line.trim() == "cargo fmt");
     println!("pre-commit runs cargo fmt: {looks_like_cargo_fmt}");
 
@@ -104,16 +66,7 @@ fn inspect_pre_commit(
         println!("pre-commit cd: {cd_dir}");
     }
 
-    if let Some(manifest_dir) = maybe_manifest_dir {
-        let expected = cargo_fmt_pre_commit_script(manifest_dir);
-        let is_exact_match = normalize_newlines(&contents) == normalize_newlines(&expected);
-        println!(
-            "pre-commit matches expected cargo-fmt hook: {is_exact_match} (manifest: {})",
-            relative_display(repo_root, manifest_dir)
-        );
-    } else if looks_like_cargo_fmt {
-        println!("pre-commit matches expected cargo-fmt hook: unknown (no manifest dir resolved)");
-    }
+    // Note: we no longer attempt to match an exact pre-commit hook script; we only report state.
 
     if verbose {
         print_hook_summary(&contents);

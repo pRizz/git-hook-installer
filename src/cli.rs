@@ -27,24 +27,24 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Install a premade hook into the current repository
+    /// Install or update a premade hook into the current repository
     Install {
         /// Hook to install
         #[arg(value_enum)]
         hook: Option<HookKind>,
 
-        /// Directory containing the Cargo.toml to use (only used for cargo-fmt-pre-commit)
+        /// Directory containing the Cargo.toml to use (only used for pre-commit)
         #[arg(long, value_name = "DIR")]
         manifest_dir: Option<PathBuf>,
     },
+    /// Disable the managed `pre-commit` hook block installed by git-hook-installer
+    Disable,
+    /// Uninstall the managed `pre-commit` hook block installed by git-hook-installer
+    Uninstall,
     /// List available premade hooks
     List,
     /// Inspect and report current hook state for this repository
     Status {
-        /// Directory containing the Cargo.toml to compare against (optional)
-        #[arg(long, value_name = "DIR")]
-        manifest_dir: Option<PathBuf>,
-
         /// Print more details (e.g. hook contents summary)
         #[arg(long)]
         verbose: bool,
@@ -53,6 +53,6 @@ pub enum Command {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum HookKind {
-    /// pre-commit hook that runs `cargo fmt`
-    CargoFmtPreCommit,
+    /// pre-commit hook that runs common formatters/linters (managed block)
+    PreCommit,
 }
