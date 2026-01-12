@@ -28,68 +28,56 @@ Run with no arguments to offer to install/update the managed `pre-commit` hook:
 git-hook-installer
 ```
 
+### Scan mode (opt-in) for bulk operations
+
+Most subcommands operate on the **current repository** (by walking up parent directories to find `.git`).
+
+If you want to operate across many repositories under a directory, enable **scan mode** using
+`--recursive` (or by providing `--dir` / `--max-depth`).
+
+- **scan root**: `--dir DIR` (defaults to current directory)
+- **scan depth**: `--max-depth N` (defaults to **0**)
+  - Depth **0** scans **only the scan-root directory itself**
+  - Depth **1** scans the scan-root and its immediate children
+
+In scan mode, mutating operations (`install`, `disable`, `uninstall`) show a repo preview and ask for
+confirmation unless `--yes` is used.
+
 Recursively install/update the managed `pre-commit` hook across many repos under a directory:
 
 ```bash
-# scans current directory
-git-hook-installer install-recursive
+# scans current directory (depth 0)
+git-hook-installer install --recursive
 
-# or pass an explicit directory to scan
-git-hook-installer install-recursive ~/src
+# scan a directory
+git-hook-installer install --recursive --dir ~/src
 
-# increase scan depth (default is 1)
-git-hook-installer install-recursive --max-depth 3 ~/src
+# increase scan depth
+git-hook-installer install --recursive --dir ~/src --max-depth 3
 
 # skip the confirmation prompt
-git-hook-installer --yes install-recursive ~/src
+git-hook-installer --yes install --recursive --dir ~/src --max-depth 3
 ```
 
 Recursively uninstall the managed `pre-commit` hook block across many repos under a directory:
 
 ```bash
-# scans current directory
-git-hook-installer uninstall-recursive
-
-# or pass an explicit directory to scan
-git-hook-installer uninstall-recursive ~/src
-
-# increase scan depth (default is 1)
-git-hook-installer uninstall-recursive --max-depth 3 ~/src
-
-# skip the confirmation prompt
-git-hook-installer --yes uninstall-recursive ~/src
+git-hook-installer uninstall --recursive --dir ~/src --max-depth 3
 ```
 
 Recursively disable the managed `pre-commit` hook block across many repos under a directory:
 
 ```bash
-# scans current directory
-git-hook-installer disable-recursive
-
-# or pass an explicit directory to scan
-git-hook-installer disable-recursive ~/src
-
-# increase scan depth (default is 1)
-git-hook-installer disable-recursive --max-depth 3 ~/src
-
-# skip the confirmation prompt
-git-hook-installer --yes disable-recursive ~/src
+git-hook-installer disable --recursive --dir ~/src --max-depth 3
 ```
 
 Recursively inspect the current hook state across many repos under a directory:
 
 ```bash
-# scans current directory
-git-hook-installer status-recursive
-
-# or pass an explicit directory to scan
-git-hook-installer status-recursive ~/src
-
-# increase scan depth (default is 1)
-git-hook-installer status-recursive --max-depth 3 ~/src
+git-hook-installer status --recursive --dir ~/src --max-depth 3
 
 # show more details per repo
-git-hook-installer status-recursive --verbose --max-depth 3 ~/src
+git-hook-installer status --recursive --dir ~/src --max-depth 3 --verbose
 ```
 
 Inspect the current hook state:
@@ -125,7 +113,7 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 ## Behavior
 
 - **git repo detection**: walks up parent directories looking for `.git` (supports worktrees where `.git` is a file).
-- **recursive install**: `install-recursive [DIR]` scans for git repos under a directory and runs the installer in each repo (shows a count + directory preview and asks for confirmation unless `--yes`). The default scan depth is **1**, configurable via `--max-depth`.
+- **scan mode**: `install|disable|uninstall|status --recursive [--dir DIR] [--max-depth N]` scans for git repos under a directory and runs the command in each repo. The default scan depth is **0**, configurable via `--max-depth`.
 - **safe overwrites**: if a hook already exists, it will prompt before backing it up (or use `--force` / `--yes`).
 - **hook installed**: `.git/hooks/pre-commit` contains a **managed block** (marked with `git-hook-installer` begin/end markers) which can run a set of formatters/linters and **re-stage** changes.
 - **no repo config**: all settings are stored **inside the hook file in `.git/hooks/`** (nothing is written to your repository).
