@@ -257,6 +257,23 @@ pub fn detect_c_cpp_repo_proof(repo_root: &Path) -> Option<&'static str> {
     None
 }
 
+pub fn detect_typescript_repo_proof(repo_root: &Path) -> Option<&'static str> {
+    // Strong signal: a tsconfig exists (root or nested in common monorepo layouts).
+    if repo_root.join("tsconfig.json").is_file() {
+        return Some("found tsconfig.json");
+    }
+    if has_any_file_named_bounded(repo_root, &["tsconfig.json"], 3, 10_000) {
+        return Some("found nested tsconfig.json (shallow scan)");
+    }
+
+    // Fallback: find TS sources in a bounded scan.
+    if has_any_file_with_ext_bounded(repo_root, &["ts", "tsx"], 2, 10_000) {
+        return Some("found TypeScript source files (shallow scan)");
+    }
+
+    None
+}
+
 pub fn choose_python_tool(repo_root: &Path) -> ToolChoice<PythonTool> {
     // Prefer Ruff if it appears configured; otherwise fall back to Black if configured.
     // Default to Ruff because it can both format and lint-fix.
@@ -630,6 +647,20 @@ mod tests {
 
         // act
         let maybe_reason = detect_ruby_repo_proof(temp.path());
+
+        // assert
+        assert!(maybe_reason.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn detect_typescript_repo_proof_some_when_tsconfig_exists() -> Result<()> {
+        // arrange
+        let temp = TempDir::new()?;
+        std::fs::write(temp.path().join("tsconfig.json"), "{ }")?;
+
+        // act
+        let maybe_reason = detect_typescript_repo_proof(temp.path());
 
         // assert
         assert!(maybe_reason.is_some());

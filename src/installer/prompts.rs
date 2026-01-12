@@ -9,7 +9,7 @@ use super::detect::{
     choose_java_kotlin_tool, choose_js_ts_tool, choose_python_tool, detect_c_cpp_repo_proof,
     detect_go_repo_proof, detect_java_kotlin_repo_proof, detect_python_repo_proof,
     detect_ruby_repo_proof, detect_shell_repo_proof, detect_terraform_repo_proof,
-    detect_js_ts_repo_proof, ToolChoice, ToolChoiceKind,
+    detect_js_ts_repo_proof, detect_typescript_repo_proof, ToolChoice, ToolChoiceKind,
 };
 
 fn print_tool_choice<T: Copy>(label: &str, choice: ToolChoice<T>, tool_display: &str) {
@@ -33,6 +33,7 @@ pub fn resolve_pre_commit_settings(
     options: ResolveHookOptions,
 ) -> Result<ManagedPreCommitSettings> {
     let maybe_js_ts_proof = detect_js_ts_repo_proof(repo_root);
+    let maybe_ts_proof = detect_typescript_repo_proof(repo_root);
     let maybe_python_proof = detect_python_repo_proof(repo_root);
     let maybe_java_kotlin_proof = detect_java_kotlin_repo_proof(repo_root);
     let maybe_go_proof = detect_go_repo_proof(repo_root);
@@ -52,8 +53,14 @@ pub fn resolve_pre_commit_settings(
             };
             println!("Detected JS/TS repo signals ({reason})");
             print_tool_choice("JS/TS toolchain", js_ts_choice, js_ts_display);
+            if let Some(reason) = maybe_ts_proof {
+                println!("Enabling TypeScript typecheck (detected signals: {reason})");
+            } else {
+                println!("Disabling TypeScript typecheck (no TypeScript repo signals found)");
+            }
         } else {
             println!("Skipping JS/TS toolchain (no JS/TS repo signals found)");
+            println!("Disabling TypeScript typecheck (JS/TS toolchain not enabled)");
         }
         let python_display = match python_choice.tool {
             PythonTool::Ruff => "ruff",
@@ -125,6 +132,7 @@ pub fn resolve_pre_commit_settings(
     Ok(ManagedPreCommitSettings {
         enabled: true,
         maybe_js_ts_tool: maybe_js_ts_proof.map(|_| js_ts_choice.tool),
+        ts_typecheck_enabled: maybe_js_ts_proof.is_some() && maybe_ts_proof.is_some(),
         maybe_python_tool: maybe_python_proof.map(|_| python_choice.tool),
         maybe_java_kotlin_tool: maybe_java_kotlin_proof.map(|_| java_kotlin_choice.tool),
         go_enabled: maybe_go_proof.is_some(),

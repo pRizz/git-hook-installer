@@ -30,6 +30,8 @@ pub struct ManagedPreCommitSettings {
     pub enabled: bool,
     /// If `None`, the hook will not attempt JS/TS (or Prettier-based Markdown/YAML) formatting.
     pub maybe_js_ts_tool: Option<JsTsTool>,
+    /// If true, the hook will run a `tsc --noEmit` typecheck for TS repos.
+    pub ts_typecheck_enabled: bool,
     /// If `None`, the hook will not attempt Python formatting/linting.
     pub maybe_python_tool: Option<PythonTool>,
     /// If `None`, the hook will not attempt Java/Kotlin formatting/linting.

@@ -23,6 +23,8 @@ pub fn managed_pre_commit_block(settings: &ManagedPreCommitSettings, repo_root: 
             js_ts_tool_value,
             r#"  files_js_ts="$(ghi_filter_by_ext "$staged" "*.js" "*.jsx" "*.ts" "*.tsx")"
   files_js_ts_json="$(ghi_filter_by_ext "$staged" "*.js" "*.jsx" "*.ts" "*.tsx" "*.json")"
+  files_ts="$(ghi_filter_by_ext "$staged" "*.ts" "*.tsx")"
+  files_tsconfig="$(ghi_filter_by_ext "$staged" "tsconfig.json" "packages/*/tsconfig.json" "apps/*/tsconfig.json")"
 "#,
             r#"ghi_run_js_ts_biome() {
   files="$1"
@@ -74,6 +76,41 @@ ghi_run_js_ts_prettier_eslint() {
     fi
   fi
 }
+
+ghi_run_ts_typecheck() {
+  if [ "$GHI_TS_TYPECHECK_ENABLED" != "1" ]; then
+    return 0
+  fi
+
+  files_ts="$1"
+  files_tsconfig="$2"
+
+  if [ -z "$files_ts" ] && [ -z "$files_tsconfig" ]; then
+    return 0
+  fi
+
+  if ghi_has_cmd tsc; then
+    tsc_cmd="tsc"
+  elif ghi_has_cmd npx; then
+    tsc_cmd="npx --no-install tsc"
+  else
+    ghi_echo "tsc not found; skipping TypeScript typecheck"
+    return 0
+  fi
+
+  did_run=0
+  for cfg in tsconfig.json packages/*/tsconfig.json apps/*/tsconfig.json; do
+    if [ -f "$cfg" ]; then
+      did_run=1
+      ghi_echo "Running TypeScript typecheck (noEmit) for $cfg..."
+      $tsc_cmd --noEmit -p "$cfg"
+    fi
+  done
+
+  if [ "$did_run" -ne 1 ]; then
+    ghi_echo "TypeScript typecheck enabled but no tsconfig.json found in common locations; skipping"
+  fi
+}
 "#,
             r#"  # JS/TS + JSON
   if [ "$GHI_JS_TS_TOOL" = "biome" ]; then
@@ -82,6 +119,9 @@ ghi_run_js_ts_prettier_eslint() {
     ghi_run_js_ts_prettier_eslint "$files_js_ts_json" "$files_js_ts"
   fi
   ghi_git_add_list "$files_js_ts_json"
+
+  # TypeScript typecheck (only when TS files/config are staged)
+  ghi_run_ts_typecheck "$files_ts" "$files_tsconfig"
 "#,
             r#"  # Markdown/YAML always uses prettier if available.
   if [ -n "$files_md_yaml" ]; then
@@ -389,6 +429,7 @@ ghi_run_java_kotlin_ktlint() {
         .unwrap_or_else(|| "(none)".to_string());
 
     let enabled = if settings.enabled { "1" } else { "0" };
+    let ts_typecheck_enabled = if settings.ts_typecheck_enabled { "1" } else { "0" };
     let go_enabled = if settings.go_enabled { "1" } else { "0" };
     let shell_enabled = if settings.shell_enabled { "1" } else { "0" };
     let terraform_enabled = if settings.terraform_enabled { "1" } else { "0" };
@@ -401,6 +442,7 @@ ghi_run_java_kotlin_ktlint() {
 # git-hook-installer settings (stored locally in this hook file):
 #   enabled={enabled}
 #   js_ts_tool={js_ts_tool_note}
+#   ts_typecheck_enabled={ts_typecheck_enabled}
 #   python_tool={python_tool_note}
 #   java_kotlin_tool={java_kotlin_tool_note}
 #   go_enabled={go_enabled}
@@ -415,6 +457,7 @@ ghi_run_java_kotlin_ktlint() {
 
 GHI_ENABLED={enabled}
 GHI_JS_TS_TOOL="{js_ts_tool_value}"
+GHI_TS_TYPECHECK_ENABLED={ts_typecheck_enabled}
 GHI_PYTHON_TOOL="{python_tool_value}"
 GHI_JAVA_KOTLIN_TOOL="{java_kotlin_tool_value}"
 GHI_CARGO_MANIFEST_DIR="{cargo_manifest_dir_for_shell}"
