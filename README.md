@@ -64,7 +64,25 @@ git-hook-installer install pre-commit --manifest-dir crates/my-crate
 - **safe overwrites**: if a hook already exists, it will prompt before backing it up (or use `--force` / `--yes`).
 - **hook installed**: `.git/hooks/pre-commit` contains a **managed block** (marked with `git-hook-installer` begin/end markers) which can run a set of formatters/linters and **re-stage** changes.
 - **no repo config**: all settings are stored **inside the hook file in `.git/hooks/`** (nothing is written to your repository).
-- **toolchain auto-selection**: the installer auto-detects the most likely JS/TS, Python, and Java/Kotlin toolchain from common config files (and falls back to sensible defaults). In interactive installs it prints a short “auto-selected/defaulting” summary; in `--non-interactive` mode it stays quiet.
+- **proof-based language enabling (to avoid surprises)**:
+  - At install time, `git-hook-installer` tries to determine which languages your repo actually uses.
+  - The generated hook only includes language sections when there is **positive evidence** (“proof”) that the repo uses that language. This prevents, for example, adding JS/TS lints to a non-JS repo.
+  - If you later add a new language to the repo (or add config files), re-run `git-hook-installer install pre-commit` to re-detect and regenerate the hook.
+  - Monorepos are supported: detection includes a **bounded shallow scan** so nested packages can still be detected without doing an expensive full repo walk.
+- **toolchain auto-selection**:
+  - For languages that are enabled (proven), the installer auto-selects the most likely toolchain (e.g. Biome vs Prettier+ESLint, Ruff vs Black, Spotless vs ktlint) based on common config signals.
+  - In interactive installs it prints a short “auto-selected/defaulting” summary; in `--non-interactive` mode it stays quiet.
+- **what counts as “proof”** (high-level):
+  - **JS/TS**: `package.json` / lockfiles / `tsconfig.json` / `jsconfig.json` / Biome / ESLint / Prettier config, or a shallow scan that finds JS/TS source files.
+    - Note: Prettier-based formatting for **Markdown/YAML** is tied to JS/TS being enabled (since it uses the same toolchain).
+  - **Python**: `pyproject.toml`, requirements/setup files, common lockfiles, or a shallow scan that finds `.py` files.
+  - **Java/Kotlin**: Gradle/Maven files, or a shallow scan that finds `.java/.kt/.kts` files.
+  - **Go**: `go.mod/go.work/go.sum`, or a shallow scan that finds `.go` files.
+  - **Ruby**: `Gemfile` / `.ruby-version` / `Rakefile`, or a shallow scan that finds `.rb` files.
+  - **Shell**: `.shellcheckrc` / `.shfmt`, or a shallow scan that finds shell scripts.
+  - **Terraform**: `.terraform.lock.hcl`, or a shallow scan that finds `.tf/.tfvars` files.
+  - **C/C++**: `.clang-format`, or a shallow scan that finds common C/C++ file extensions.
+  - **Rust**: `cargo fmt` only runs when a Cargo manifest directory was resolved (or passed via `--manifest-dir`).
 - **auto-fix safety**:
   - If you have **unstaged/untracked** changes, the hook stashes them with `git stash push --keep-index --include-untracked`, runs auto-fix on the staged files, re-stages, and then restores the stash.
   - If a formatting step errors, the hook attempts a **best-effort rollback** (reset + re-apply saved staged diff, plus stash restore if used).
