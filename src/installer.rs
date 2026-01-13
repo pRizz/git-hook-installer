@@ -12,7 +12,9 @@ use dialoguer::Confirm;
 use crate::cargo_repo::ResolveHookOptions;
 use crate::cli::HookKind;
 use crate::hooks::{
-    disable_managed_pre_commit_hook, managed_pre_commit_block, uninstall_managed_pre_commit_hook,
+    disable_managed_pre_commit_hook, disable_managed_pre_commit_hook_best_effort,
+    managed_pre_commit_block,
+    uninstall_managed_pre_commit_hook, uninstall_managed_pre_commit_hook_best_effort,
     upsert_managed_pre_commit_hook, InstallOptions, ManagedPreCommitSettings,
 };
 
@@ -88,6 +90,14 @@ pub fn disable_managed_pre_commit(git_dir: &Path) -> Result<()> {
     disable_managed_pre_commit_hook(git_dir)
 }
 
+pub fn disable_managed_pre_commit_best_effort(git_dir: &Path) -> Result<()> {
+    disable_managed_pre_commit_hook_best_effort(git_dir)
+}
+
 pub fn uninstall_managed_pre_commit(git_dir: &Path) -> Result<()> {
     uninstall_managed_pre_commit_hook(git_dir)
+}
+
+pub fn uninstall_managed_pre_commit_best_effort(git_dir: &Path) -> Result<()> {
+    uninstall_managed_pre_commit_hook_best_effort(git_dir)
 }

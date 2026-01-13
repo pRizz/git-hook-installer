@@ -23,8 +23,8 @@ use crate::cli::{Cli, Command, HookKind};
 use crate::git_repo::{find_git_repo, find_git_repos_under_dir};
 use crate::hooks::InstallOptions;
 use crate::installer::{
-    disable_managed_pre_commit, install_resolved_hook, resolve_hook_kind,
-    uninstall_managed_pre_commit,
+    disable_managed_pre_commit, disable_managed_pre_commit_best_effort, install_resolved_hook,
+    resolve_hook_kind, uninstall_managed_pre_commit, uninstall_managed_pre_commit_best_effort,
 };
 use crate::status::print_status;
 
@@ -60,6 +60,9 @@ fn main() -> Result<()> {
     let command = cli.command.unwrap_or(Command::Install {
         hook: None,
         manifest_dir: None,
+        recursive: false,
+        max_depth: None,
+        dir: None,
     });
 
     match command {
@@ -68,109 +71,105 @@ fn main() -> Result<()> {
             println!("- pre-commit");
             Ok(())
         }
-        Command::InstallRecursive {
+        Command::Install {
             hook,
             manifest_dir,
+            recursive,
             max_depth,
             dir,
         } => {
-            let scan_root = dir.unwrap_or(cwd);
-            println!(
-                "Scanning {} for git repositories (max depth: {})",
-                scan_root.display(),
-                max_depth
-            );
-            let repos = find_git_repos_under_dir(&scan_root, max_depth)?;
-            if repos.is_empty() {
-                println!("No git repositories found under {}", scan_root.display());
-                return Ok(());
-            }
-
-            if cli.non_interactive && !cli.yes {
-                anyhow::bail!(
-                    "Refusing to run recursive install without confirmation (found {} repos). Re-run with --yes.",
-                    repos.len()
-                );
-            }
-
-            if !cli.yes && !cli.non_interactive {
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
+            if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
+                let scan_root = dir.unwrap_or(cwd);
                 println!(
-                    "Found {} git repositories under {}:",
-                    repos.len(),
-                    scan_root.display()
+                    "Scanning {} for git repositories (max depth: {})",
+                    scan_root.display(),
+                    effective_max_depth
                 );
-                let preview_limit = 25usize;
-                for (idx, (repo_root, _)) in repos.iter().take(preview_limit).enumerate() {
-                    println!("  {:>2}. {}", idx + 1, repo_root.display());
-                }
-                if repos.len() > preview_limit {
-                    println!("  ... and {} more", repos.len() - preview_limit);
-                }
-
-                let should_continue = Confirm::new()
-                    .with_prompt(format!("Run installer in {} repositories?", repos.len()))
-                    .default(false)
-                    .interact()
-                    .context("Failed to read confirmation from stdin")?;
-
-                if !should_continue {
-                    println!("Aborted.");
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
+                if repos.is_empty() {
+                    println!("No git repositories found under {}", scan_root.display());
                     return Ok(());
                 }
-            }
 
-            let mut failures: Vec<(PathBuf, anyhow::Error)> = Vec::new();
-            for (repo_root, git_dir) in repos {
-                println!("\n==> {}", repo_root.display());
-                let result = install_in_repo(
-                    &repo_root,
-                    &repo_root,
-                    &git_dir,
-                    hook,
-                    manifest_dir.clone(),
-                    // After the global confirmation, don't ask the per-repo "install?" prompt.
-                    ResolveHookOptions {
-                        yes: true,
-                        non_interactive: cli.non_interactive,
-                    },
-                    InstallOptions {
-                        yes: cli.yes,
-                        non_interactive: cli.non_interactive,
-                        force: cli.force,
-                    },
-                );
-                if let Err(err) = result {
-                    eprintln!("Failed in {}: {err:#}", repo_root.display());
-                    failures.push((repo_root, err));
+                if cli.non_interactive && !cli.yes {
+                    anyhow::bail!(
+                        "Refusing to run scan-mode install without confirmation (found {} repos). Re-run with --yes.",
+                        repos.len()
+                    );
                 }
-            }
 
-            if failures.is_empty() {
-                return Ok(());
-            }
+                if !cli.yes && !cli.non_interactive {
+                    println!(
+                        "Found {} git repositories under {}:",
+                        repos.len(),
+                        scan_root.display()
+                    );
+                    let preview_limit = 25usize;
+                    for (idx, (repo_root, _)) in repos.iter().take(preview_limit).enumerate() {
+                        println!("  {:>2}. {}", idx + 1, repo_root.display());
+                    }
+                    if repos.len() > preview_limit {
+                        println!("  ... and {} more", repos.len() - preview_limit);
+                    }
 
-            anyhow::bail!(
-                "Recursive install completed with {} failure(s).",
-                failures.len()
-            )
-        }
-        Command::Disable
-        | Command::Uninstall
-        | Command::Status { .. }
-        | Command::Install { .. } => {
-            let (repo_root, git_dir) = match find_git_repo(&cwd)? {
-                Some(value) => value,
-                None => {
-                    eprintln!("Not inside a git repository (no .git directory found).");
+                    let should_continue = Confirm::new()
+                        .with_prompt(format!("Run installer in {} repositories?", repos.len()))
+                        .default(false)
+                        .interact()
+                        .context("Failed to read confirmation from stdin")?;
+
+                    if !should_continue {
+                        println!("Aborted.");
+                        return Ok(());
+                    }
+                }
+
+                let mut failures: Vec<(PathBuf, anyhow::Error)> = Vec::new();
+                for (repo_root, git_dir) in repos {
+                    println!("\n==> {}", repo_root.display());
+                    let result = install_in_repo(
+                        &repo_root,
+                        &repo_root,
+                        &git_dir,
+                        hook,
+                        manifest_dir.clone(),
+                        // After the global confirmation, don't ask the per-repo "install?" prompt.
+                        ResolveHookOptions {
+                            yes: true,
+                            non_interactive: cli.non_interactive,
+                        },
+                        InstallOptions {
+                            yes: cli.yes,
+                            non_interactive: cli.non_interactive,
+                            force: cli.force,
+                        },
+                    );
+                    if let Err(err) = result {
+                        eprintln!("Failed in {}: {err:#}", repo_root.display());
+                        failures.push((repo_root, err));
+                    }
+                }
+
+                if failures.is_empty() {
                     return Ok(());
                 }
-            };
 
-            match command {
-                Command::Disable => disable_managed_pre_commit(&git_dir),
-                Command::Uninstall => uninstall_managed_pre_commit(&git_dir),
-                Command::Status { verbose } => print_status(&repo_root, &git_dir, verbose),
-                Command::Install { hook, manifest_dir } => install_in_repo(
+                anyhow::bail!(
+                    "Scan-mode install completed with {} failure(s).",
+                    failures.len()
+                )
+            } else {
+                let (repo_root, git_dir) = match find_git_repo(&cwd)? {
+                    Some(value) => value,
+                    None => {
+                        eprintln!("Not inside a git repository (no .git directory found).");
+                        return Ok(());
+                    }
+                };
+
+                install_in_repo(
                     &cwd,
                     &repo_root,
                     &git_dir,
@@ -185,8 +184,221 @@ fn main() -> Result<()> {
                         non_interactive: cli.non_interactive,
                         force: cli.force,
                     },
-                ),
-                _ => Ok(()),
+                )
+            }
+        }
+        Command::Disable {
+            recursive,
+            max_depth,
+            dir,
+        } => {
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
+            if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
+                let scan_root = dir.unwrap_or(cwd);
+                println!(
+                    "Scanning {} for git repositories (max depth: {})",
+                    scan_root.display(),
+                    effective_max_depth
+                );
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
+                if repos.is_empty() {
+                    println!("No git repositories found under {}", scan_root.display());
+                    return Ok(());
+                }
+
+                if cli.non_interactive && !cli.yes {
+                    anyhow::bail!(
+                        "Refusing to run scan-mode disable without confirmation (found {} repos). Re-run with --yes.",
+                        repos.len()
+                    );
+                }
+
+                if !cli.yes && !cli.non_interactive {
+                    println!(
+                        "Found {} git repositories under {}:",
+                        repos.len(),
+                        scan_root.display()
+                    );
+                    let preview_limit = 25usize;
+                    for (idx, (repo_root, _)) in repos.iter().take(preview_limit).enumerate() {
+                        println!("  {:>2}. {}", idx + 1, repo_root.display());
+                    }
+                    if repos.len() > preview_limit {
+                        println!("  ... and {} more", repos.len() - preview_limit);
+                    }
+
+                    let should_continue = Confirm::new()
+                        .with_prompt(format!("Run disable in {} repositories?", repos.len()))
+                        .default(false)
+                        .interact()
+                        .context("Failed to read confirmation from stdin")?;
+
+                    if !should_continue {
+                        println!("Aborted.");
+                        return Ok(());
+                    }
+                }
+
+                let mut failures: Vec<(PathBuf, anyhow::Error)> = Vec::new();
+                for (repo_root, git_dir) in repos {
+                    println!("\n==> {}", repo_root.display());
+                    let result = disable_managed_pre_commit_best_effort(&git_dir);
+                    if let Err(err) = result {
+                        eprintln!("Failed in {}: {err:#}", repo_root.display());
+                        failures.push((repo_root, err));
+                    }
+                }
+
+                if failures.is_empty() {
+                    return Ok(());
+                }
+
+                anyhow::bail!(
+                    "Scan-mode disable completed with {} failure(s).",
+                    failures.len()
+                )
+            } else {
+                let (_repo_root, git_dir) = match find_git_repo(&cwd)? {
+                    Some(value) => value,
+                    None => {
+                        eprintln!("Not inside a git repository (no .git directory found).");
+                        return Ok(());
+                    }
+                };
+                disable_managed_pre_commit(&git_dir)
+            }
+        }
+        Command::Uninstall {
+            recursive,
+            max_depth,
+            dir,
+        } => {
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
+            if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
+                let scan_root = dir.unwrap_or(cwd);
+                println!(
+                    "Scanning {} for git repositories (max depth: {})",
+                    scan_root.display(),
+                    effective_max_depth
+                );
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
+                if repos.is_empty() {
+                    println!("No git repositories found under {}", scan_root.display());
+                    return Ok(());
+                }
+
+                if cli.non_interactive && !cli.yes {
+                    anyhow::bail!(
+                        "Refusing to run scan-mode uninstall without confirmation (found {} repos). Re-run with --yes.",
+                        repos.len()
+                    );
+                }
+
+                if !cli.yes && !cli.non_interactive {
+                    println!(
+                        "Found {} git repositories under {}:",
+                        repos.len(),
+                        scan_root.display()
+                    );
+                    let preview_limit = 25usize;
+                    for (idx, (repo_root, _)) in repos.iter().take(preview_limit).enumerate() {
+                        println!("  {:>2}. {}", idx + 1, repo_root.display());
+                    }
+                    if repos.len() > preview_limit {
+                        println!("  ... and {} more", repos.len() - preview_limit);
+                    }
+
+                    let should_continue = Confirm::new()
+                        .with_prompt(format!("Run uninstall in {} repositories?", repos.len()))
+                        .default(false)
+                        .interact()
+                        .context("Failed to read confirmation from stdin")?;
+
+                    if !should_continue {
+                        println!("Aborted.");
+                        return Ok(());
+                    }
+                }
+
+                let mut failures: Vec<(PathBuf, anyhow::Error)> = Vec::new();
+                for (repo_root, git_dir) in repos {
+                    println!("\n==> {}", repo_root.display());
+                    let result = uninstall_managed_pre_commit_best_effort(&git_dir);
+                    if let Err(err) = result {
+                        eprintln!("Failed in {}: {err:#}", repo_root.display());
+                        failures.push((repo_root, err));
+                    }
+                }
+
+                if failures.is_empty() {
+                    return Ok(());
+                }
+
+                anyhow::bail!(
+                    "Scan-mode uninstall completed with {} failure(s).",
+                    failures.len()
+                )
+            } else {
+                let (_repo_root, git_dir) = match find_git_repo(&cwd)? {
+                    Some(value) => value,
+                    None => {
+                        eprintln!("Not inside a git repository (no .git directory found).");
+                        return Ok(());
+                    }
+                };
+                uninstall_managed_pre_commit(&git_dir)
+            }
+        }
+        Command::Status {
+            verbose,
+            recursive,
+            max_depth,
+            dir,
+        } => {
+            let scan_mode = recursive || dir.is_some() || max_depth.is_some();
+            if scan_mode {
+                let effective_max_depth = max_depth.unwrap_or(if recursive { 1 } else { 0 });
+                let scan_root = dir.unwrap_or(cwd);
+                println!(
+                    "Scanning {} for git repositories (max depth: {})",
+                    scan_root.display(),
+                    effective_max_depth
+                );
+                let repos = find_git_repos_under_dir(&scan_root, effective_max_depth)?;
+                if repos.is_empty() {
+                    println!("No git repositories found under {}", scan_root.display());
+                    return Ok(());
+                }
+
+                let mut failures: Vec<(PathBuf, anyhow::Error)> = Vec::new();
+                for (repo_root, git_dir) in repos {
+                    println!("\n==> {}", repo_root.display());
+                    let result = print_status(&repo_root, &git_dir, verbose);
+                    if let Err(err) = result {
+                        eprintln!("Failed in {}: {err:#}", repo_root.display());
+                        failures.push((repo_root, err));
+                    }
+                }
+
+                if failures.is_empty() {
+                    return Ok(());
+                }
+
+                anyhow::bail!(
+                    "Scan-mode status completed with {} failure(s).",
+                    failures.len()
+                )
+            } else {
+                let (repo_root, git_dir) = match find_git_repo(&cwd)? {
+                    Some(value) => value,
+                    None => {
+                        eprintln!("Not inside a git repository (no .git directory found).");
+                        return Ok(());
+                    }
+                };
+                print_status(&repo_root, &git_dir, verbose)
             }
         }
     }
