@@ -3,8 +3,11 @@
 A small Rust CLI that installs premade git hooks into the **current** repository.
 
 [![crates.io](https://img.shields.io/crates/v/git-hook-installer.svg)](https://crates.io/crates/git-hook-installer)
+[![Downloads](https://img.shields.io/crates/d/git-hook-installer.svg)](https://crates.io/crates/git-hook-installer)
+[![docs.rs](https://img.shields.io/docsrs/git-hook-installer)](https://docs.rs/git-hook-installer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Repository](https://img.shields.io/badge/repo-github-blue)](https://github.com/pRizz/git-hook-installer)
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
+[![dependency status](https://deps.rs/repo/github/pRizz/git-hook-installer/status.svg)](https://deps.rs/repo/github/pRizz/git-hook-installer)
 
 ## Install
 
